@@ -32,23 +32,17 @@ InPacket(theData, theLength, theFrame)
 void
 ARPInPacket::decode()
 {
-  //uword icmpSeq = *(uword*)(myData + 22);//prob wrong
-  //icmpSeq = ((icmpSeq & 0xff00) >> 8) | ((icmpSeq & 0x00ff) << 8);
-  uword hoffs = myFrame->headerOffset();
-  byte* temp = new byte[myLength + hoffs];
-  byte* aReply = temp + hoffs;
-  memcpy(aReply, myData, myLength);
   // by reusing his ip packet (including id nr) we get the same checksum :)
     // Just reverse IP addresses.
- ARPHeader* arpHeader = (ARPHeader*) (aReply);
+ ARPHeader* arpHeader = (ARPHeader*) (myData);
 /*
  byte* pM = (byte*) arpHeader;
  for (int i=0;i<28;i++)
    ax_printf("%2.2X ",pM[i]);
  ax_printf("\r\n");
-*/// cout << arpHeader->targetIPAddress << endl;
+*/
+// check for our ethernet address
  if(arpHeader->targetIPAddress == IP::instance().myAddress()){
-   //cout << "arp packet" << endl;
    arpHeader->targetEthAddress = arpHeader->senderEthAddress;
    arpHeader->targetIPAddress = arpHeader->senderIPAddress;
    arpHeader->senderEthAddress = Ethernet::instance().myAddress();

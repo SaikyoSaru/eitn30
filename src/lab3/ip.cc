@@ -54,34 +54,24 @@ InPacket(theData, theLength, theFrame)
 
 void
 IPInPacket::decode() {
-  // check if is an ICMP ECHO request skip IP totally...
-  // uword icmpSeq = *(uword*)(myData + 26);
-  // icmpSeq = ((icmpSeq & 0xff00) >> 8) | ((icmpSeq & 0x00ff) << 8);
-  // trace << "icmp echo, icmp_seq=" << icmpSeq << endl;
-  // create a response...
-  uword hoffs = myFrame->headerOffset();
-  byte* temp = new byte[myLength + hoffs];
-  byte* aReply = temp + hoffs;
-  //delete temp;
-  memcpy(aReply, myData, myLength);
-  IPHeader * myIpHeader = (IPHeader*) aReply;
-
-  if ((myIpHeader->destinationIPAddress) == IP::instance().myAddress()) // Our address, should be HILO?
+  //cast data to ip header
+  IPHeader* myIpHeader = (IPHeader*) myData;
+  // check if its for us
+  if ((myIpHeader->destinationIPAddress) == IP::instance().myAddress())
   {
-  //  cout << "ip packet" << endl;
-    if (myIpHeader->versionNHeaderLength == 0x45){ //ok
+
+    if (myIpHeader->versionNHeaderLength == 0x45){ // version and headerelength ok
       if ((HILO(myIpHeader->fragmentFlagsNOffset) & 0x3FFF) == 0 ) { // fragment ok
         myProtocol = myIpHeader->protocol;
         if(myProtocol == 0x1) {
           //cout << "icmp" << endl;
           mySourceIPAddress = (myIpHeader->sourceIPAddress);
           uword realPacketLength = HILO(myIpHeader->totalLength);
-          byte* icmp = aReply + headerOffset();
+          byte* icmp = myData + headerOffset();
           ICMPInPacket* aICMP = new ICMPInPacket(icmp, realPacketLength - headerOffset(), this);
           aICMP->decode();
-          delete aICMP; // could be an issue??
+          delete aICMP; // get rid of memory leak
         } else {
-        //  this->answer(aReply, myLength);
           cout << "not ping" << endl;
         }
 
@@ -90,17 +80,16 @@ IPInPacket::decode() {
   } else {
     cout << "yo shit is wrong" << endl;
   }
-  delete aReply;
+
 }
 
 //-----------------------------------------------------------------------------
 
 void
 IPInPacket::answer(byte* theData, udword theLength) {
-
-  IPHeader * myIpHeader = (IPHeader*) (theData);//prova hilo
+  // cast to ip header again, and set the values
+  IPHeader * myIpHeader = (IPHeader*) (theData);
   myIpHeader->identification = HILO(sequenceNumber++);
-  //cout << "seq:" << sequenceNumber << endl;
   myIpHeader->versionNHeaderLength = 0x45;
   myIpHeader->TypeOfService = 0x0;
   myIpHeader->fragmentFlagsNOffset = 0x0;
@@ -111,17 +100,7 @@ IPInPacket::answer(byte* theData, udword theLength) {
   myIpHeader->sourceIPAddress = IP::instance().myAddress();
   myIpHeader->destinationIPAddress = mySourceIPAddress;
   myIpHeader->headerChecksum = calculateChecksum(theData, theLength, 0);
-
-  // Change to reply
-  //theData[20] = 0;
-  // Adjust ICMP checksum...
-  //uword oldSum = *(uword*)(myData + 22);
-  //uword newSum = oldSum + 0x8;
-  //*(uword*)(aReply + 22) = newSum;
-
-  //theData = (theData - myFrame->headerOffset());
-  //theLength += myFrame->headerOffset();
-
+  // call answer in llc
   myFrame->answer((byte*)myIpHeader, theLength);
   delete myFrame;
 }

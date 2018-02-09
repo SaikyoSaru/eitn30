@@ -38,7 +38,6 @@ ICMPInPacket::decode() {
   // som kommer precis efter checksum. Vi ska inte ändra något i ICMPECHOHeader
   // så jag försökte fråga varför den ens finns med i hh-filen men han verkade inte
   // fatta....
-  //cout << "icmp decode" << endl;
   if(icmp->type == 0x8){ //Echo request
     icmp->type = 0x0; //set echo reply
     icmp->checksum += 0x8; // calculateChecksum(myData, myLength, icmp->checksum);
@@ -50,7 +49,7 @@ ICMPInPacket::decode() {
 
 void
 ICMPInPacket::answer(byte* theData, udword theLength) {
-  //cout << "header offset" << myFrame->headerOffset() << endl;
+  // decrement the data pointer and add the header length
   theData -= myFrame->headerOffset();
   theLength += myFrame->headerOffset();
   myFrame->answer((theData) , theLength);
