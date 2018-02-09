@@ -42,6 +42,8 @@ class IP
  private:
   IP();
   IPAddress* myIPAddress;
+  uword sequenceNumber;
+
   // Holds the IP address of this server
 };
 
@@ -75,6 +77,7 @@ class IPInPacket : public InPacket
   byte      myProtocol;
   IPAddress mySourceIPAddress;
   uword     sequenceNumber;
+
 };
 
 /*****************************************************************************

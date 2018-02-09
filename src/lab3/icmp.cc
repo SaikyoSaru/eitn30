@@ -41,7 +41,7 @@ ICMPInPacket::decode() {
   //cout << "icmp decode" << endl;
   if(icmp->type == 0x8){ //Echo request
     icmp->type = 0x0; //set echo reply
-    icmp->checksum +=8; // calculateChecksum(myData, myLength, icmp->checksum);
+    icmp->checksum += 0x8; // calculateChecksum(myData, myLength, icmp->checksum);
     this->answer((byte *) icmp, myLength);
   }
 }
@@ -50,7 +50,10 @@ ICMPInPacket::decode() {
 
 void
 ICMPInPacket::answer(byte* theData, udword theLength) {
-  myFrame->answer((theData - myFrame->headerOffset()) , theLength + myFrame->headerOffset());
+  //cout << "header offset" << myFrame->headerOffset() << endl;
+  theData -= myFrame->headerOffset();
+  theLength += myFrame->headerOffset();
+  myFrame->answer((theData) , theLength);
   delete myFrame;
 }
 
