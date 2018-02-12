@@ -26,7 +26,7 @@ extern "C"
 #ifdef D_TCP
 #define trace cout
 #else
-#define trace if(false) cout
+#define trace if(true) cout
 #endif
 /****************** TCP DEFINITION SECTION *************************/
 
@@ -198,6 +198,8 @@ TCPState::Synchronize(TCPConnection* theConnection,
 {
   //theConnection->theSynchronizationNumber = theSynchronizationNumber;
   ListenState::instance()->Synchronize(theConnection, theSynchronizationNumber);
+  // Behövs detta? Förstår inte riktigt när detta ska köras, tänker att den alltid
+  // anropar submetoden... eller?
 }
 // Handle an incoming SYN segment
 void
@@ -320,7 +322,7 @@ SynRecvdState::Acknowledge(TCPConnection* theConnection,
      // Prepare for the next send operation.
      theConnection->sendNext += 1;
      // Change state
-     theConnection->myState = SynRecvdState::instance();
+     theConnection->myState = EstablishedState::instance(); //SynRecvdState::instance();
      break;
    default:
      trace << "send RST..." << endl;
@@ -478,7 +480,7 @@ TCPSender::sendFlags(byte theFlags)
   // Decide on the value of the length totalSegmentLength.
   // Allocate a TCP segment.
 
-  uword totalSegmentLength = 512; //TODO: Default segment length, might change
+  uword totalSegmentLength = 20; //TODO: Default segment length, might change
   byte* anAnswer = new byte[totalSegmentLength];
   // Calculate the pseudo header checksum
   TCPPseudoHeader* aPseudoHeader =
@@ -488,19 +490,32 @@ TCPSender::sendFlags(byte theFlags)
   delete aPseudoHeader;
   // Create the TCP segment.
   // Calculate the final checksum.
-  TCPHeader* aTCPHeader = new TCPHeader();  //TODO
+  TCPHeader* aTCPHeader = (TCPHeader*) anAnswer; //new TCPHeader();  //TODO
+  aTCPHeader->flags = theFlags;
+  cout << "flaggorna" << theFlags << endl;
+  aTCPHeader->sourcePort = myConnection->myPort;
+  cout << myConnection->myPort << endl;
+  aTCPHeader->destinationPort = myConnection->hisPort;
+  aTCPHeader->sequenceNumber = myConnection->sendNext;
+  aTCPHeader->acknowledgementNumber = myConnection->sentUnAcked;
+  aTCPHeader->headerLength = 20;
+  aTCPHeader->windowSize = myConnection->receiveWindow; //???
   aTCPHeader->checksum = calculateChecksum(anAnswer,
                                            totalSegmentLength,
                                            pseudosum);
+
   // Send the TCP segment.
-  myAnswerChain->answer(anAnswer,
+  myAnswerChain->answer((byte*)aTCPHeader,
                         totalSegmentLength);
   // Deallocate the dynamic memory
   delete anAnswer;
+  //delete aTCPHeader;
 }
 
 void
 TCPSender::sendData(byte*  theData, udword theLength) {
+  myAnswerChain->answer(theData,
+                        theLength);
 
 }//TODO
 
@@ -564,7 +579,9 @@ TCPInPacket::copyAnswerChain()
 
 void
 TCPInPacket::answer(byte* theData, udword theLength){ //TODO
-
+  myFrame->answer(theData, theLength);
+  delete myFrame;
+  cout << "never run?" << endl;
 }
 
 uword
