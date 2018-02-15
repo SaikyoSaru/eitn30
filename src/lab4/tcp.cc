@@ -149,7 +149,7 @@ TCPConnection::Synchronize(udword theSynchronizationNumber)
 
 void
 TCPConnection::NetClose(){
-
+  //myState->
 }
 // Handle an incoming FIN segment
 
@@ -542,7 +542,10 @@ TCPSender::sendFlags(byte theFlags)
                                            totalSegmentLength,
                                            pseudosum);
 cout << "checksum" << (uword) aTCPHeader->checksum << endl;
-
+byte* pM = (byte*) aTCPHeader;
+    for (int i=0; i<totalSegmentLength; i++)
+      ax_printf(" %2.2X",pM[i]);
+    ax_printf("\r\n");
 
   myAnswerChain->answer((byte*)aTCPHeader,
                         totalSegmentLength);
@@ -551,10 +554,17 @@ cout << "checksum" << (uword) aTCPHeader->checksum << endl;
   //delete aTCPHeader;
 }
 
+// ---------------------------------------------------------------------------
+
 void
 TCPSender::sendData(byte*  theData, udword theLength) {
   //  myAnswerChain->answer(theData,
   //                       theLength);
+
+//  theData -= 20; //move back the pointer to make room for the header
+//  theLength += 20;//increase the length with the header length
+
+  cout << "the length: " << theLength << endl;
   byte* pM = (byte*) theData;
       for (int i=0; i<theLength; i++)
         ax_printf(" %2.2X",pM[i]);
@@ -569,6 +579,8 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   uword pseudosum = aPseudoHeader->checksum();
 
   delete aPseudoHeader;
+
+
   // Create the TCP segment.
   // Calculate the final checksum.
   TCPHeader* aTCPHeader = (TCPHeader*) theData;
@@ -583,10 +595,15 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   aTCPHeader->urgentPointer = 0;
   aTCPHeader->windowSize = HILO(myConnection->receiveWindow); //???
   aTCPHeader->checksum = calculateChecksum((byte*)aTCPHeader,
-                                           totalSegmentLength,
+                                           theLength,
                                            pseudosum);
+  cout << "changed tcp packet:" << endl;
 
-  myAnswerChain->answer((byte*)aTCPHeader,
+  byte* pM2 = (byte*) aTCPHeader;
+     for (int i=0; i<theLength; i++)
+       ax_printf(" %2.2X",pM2[i]);
+     ax_printf("\r\n");
+  myAnswerChain->answer((byte*)aTCPHeader, //(byte*)aTCPHeader
                         theLength);
   // Deallocate the dynamic memory
 
@@ -659,7 +676,8 @@ TCPInPacket::decode()
 if ((aTCPHeader->flags & 0x10 ) != 0) {
     // Received a ACK flag
     //cout << "in 0x10: " << aTCPHeader->flags << endl;
-    if(aTCPHeader->flags & 0x01) {
+    if(aTCPHeader->flags & 0x01) {//FIN
+      cout << "got fin flag" << endl;
      aConnection->NetClose();
 
     }
@@ -688,9 +706,9 @@ TCPInPacket::copyAnswerChain()
 }
 
 void
-TCPInPacket::answer(byte* theData, udword theLength){ //TODO
-  theData -= theLength;
-  theLength += theLength;
+TCPInPacket::answer(byte* theData, udword theLength){
+  theData -= headerOffset();
+  theLength += headerOffset();
   //cout << "never run?" << endl;
 
   myFrame->answer(theData, theLength);
