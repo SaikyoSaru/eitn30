@@ -411,14 +411,13 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
     switch (theConnection->myPort)
     {
      case 7:
-       trace << "got ACK on ECHO port" << endl;
-       theConnection->receiveNext = theAcknowledgementNumber + 1;
+       cout << "got ACK on ECHO port while taking packages" << endl;
+       //theConnection->receiveNext = theAcknowledgementNumber + 1;
        // Next reply to be sent.
-       theConnection->sentUnAcked = theConnection->sendNext;
+       //theConnection->sentUnAcked = theConnection->sendNext;
        // Send a segment with the ACK flag set.
-       theConnection->myTCPSender->sendFlags(0x2);
        // Prepare for the next send operation.
-       theConnection->sendNext += 1;
+       theConnection->sendNext = theAcknowledgementNumber;
        // Change state
   //     theConnection->myState = EstablishedState::instance(); //SynRecvdState::instance();
        break;
@@ -563,11 +562,7 @@ byte* pM = (byte*) aTCPHeader;
 
 void
 TCPSender::sendData(byte*  theData, udword theLength) {
-  //  myAnswerChain->answer(theData,
-  //                       theLength);
 
-//  theData -= 20; //move back the pointer to make room for the header
-//  theLength += 20;//increase the length with the header length
 /*
   cout << "the length: " << theLength << endl;
   byte* pM = (byte*) theData;
@@ -596,7 +591,7 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   aTCPHeader->destinationPort = HILO(myConnection->hisPort);
   aTCPHeader->sequenceNumber = LHILO(myConnection->sendNext);
   aTCPHeader->acknowledgementNumber = LHILO(myConnection->receiveNext); // done!!
-  cout << "the sent acknbr" << aTCPHeader->acknowledgementNumber << endl;
+  //cout << "the sent acknbr" << aTCPHeader->acknowledgementNumber << endl;
   aTCPHeader->headerLength = 0x50;
   aTCPHeader->checksum = 0;
   aTCPHeader->urgentPointer = 0;
@@ -604,12 +599,12 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   aTCPHeader->checksum = calculateChecksum((byte*)aTCPHeader,
                                            theLength,
                                            pseudosum);
-  cout << "changed tcp packet:" << endl;
+  //cout << "changed tcp packet:" << endl;
 
-  byte* pM2 = (byte*) aTCPHeader;
-     for (int i=0; i<theLength; i++)
-       ax_printf(" %2.2X",pM2[i]);
-     ax_printf("\r\n");
+  // byte* pM2 = (byte*) aTCPHeader;
+  //    for (int i=0; i<theLength; i++)
+  //      ax_printf(" %2.2X",pM2[i]);
+  //    ax_printf("\r\n");
   myAnswerChain->answer((byte*)aTCPHeader, //(byte*)aTCPHeader
                         theLength);
   // Deallocate the dynamic memory
