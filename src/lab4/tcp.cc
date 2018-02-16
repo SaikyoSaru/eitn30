@@ -323,7 +323,7 @@ SynRecvdState::Acknowledge(TCPConnection* theConnection,
   {
    case 7:
      trace << "got ACK on ECHO port" << endl;
-     theConnection->receiveNext = theAcknowledgementNumber + 1;
+     theConnection->receiveNext = theAcknowledgementNumber;
      //theConnection->receiveWindow = 8*1024;
      //theConnection->sendNext = get_time();
      // Next reply to be sent.
@@ -331,7 +331,7 @@ SynRecvdState::Acknowledge(TCPConnection* theConnection,
      // Send a segment with the ACK flag set.
     // theConnection->myTCPSender->sendFlags(0x2);
      // Prepare for the next send operation.
-     theConnection->sendNext += 1;
+     //theConnection->sendNext += 1;
      // Change state
      theConnection->myState = EstablishedState::instance(); //SynRecvdState::instance();
      break;
@@ -392,10 +392,12 @@ EstablishedState::Receive(TCPConnection* theConnection,
 
   // Delayed ACK is not implemented, simply acknowledge the data
   // by sending an ACK segment, then echo the data using Send.
-  cout << "estab" << theSynchronizationNumber << endl;
+  //cout << "estab" << theSynchronizationNumber << endl;
   //this->Acknowledge(theConnection, theSynchronizationNumber + 1);
+  theConnection->receiveNext = theSynchronizationNumber + (theLength - 20);
   this->Send(theConnection, theData, theLength);
-  theConnection->receiveNext++;
+  //theConnection->sendNext += (theLength - 20);
+
 
 
 }
@@ -541,11 +543,14 @@ TCPSender::sendFlags(byte theFlags)
   aTCPHeader->checksum = calculateChecksum((byte*)aTCPHeader,
                                            totalSegmentLength,
                                            pseudosum);
+/*
 cout << "checksum" << (uword) aTCPHeader->checksum << endl;
 byte* pM = (byte*) aTCPHeader;
     for (int i=0; i<totalSegmentLength; i++)
       ax_printf(" %2.2X",pM[i]);
     ax_printf("\r\n");
+*/
+  //aTCPHeader -= totalSegmentLength;
 
   myAnswerChain->answer((byte*)aTCPHeader,
                         totalSegmentLength);
@@ -563,19 +568,20 @@ TCPSender::sendData(byte*  theData, udword theLength) {
 
 //  theData -= 20; //move back the pointer to make room for the header
 //  theLength += 20;//increase the length with the header length
-
+/*
   cout << "the length: " << theLength << endl;
   byte* pM = (byte*) theData;
       for (int i=0; i<theLength; i++)
         ax_printf(" %2.2X",pM[i]);
       ax_printf("\r\n");
+      */
   uword totalSegmentLength = 20; //TODO: Default segment length, might change
   //byte* anAnswer = new byte[totalSegmentLength];
   // Calculate the pseudo header checksum
 
   TCPPseudoHeader* aPseudoHeader =
     new TCPPseudoHeader(myConnection->hisAddress,
-                        totalSegmentLength);
+                        theLength);
   uword pseudosum = aPseudoHeader->checksum();
 
   delete aPseudoHeader;
@@ -590,6 +596,7 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   aTCPHeader->destinationPort = HILO(myConnection->hisPort);
   aTCPHeader->sequenceNumber = LHILO(myConnection->sendNext);
   aTCPHeader->acknowledgementNumber = LHILO(myConnection->receiveNext); // done!!
+  cout << "the sent acknbr" << aTCPHeader->acknowledgementNumber << endl;
   aTCPHeader->headerLength = 0x50;
   aTCPHeader->checksum = 0;
   aTCPHeader->urgentPointer = 0;
@@ -707,10 +714,10 @@ TCPInPacket::copyAnswerChain()
 
 void
 TCPInPacket::answer(byte* theData, udword theLength){
-  theData -= headerOffset();
-  theLength += headerOffset();
-  //cout << "never run?" << endl;
+  //theData -= headerOffset();
+  //theLength += headerOffset();
 
+  // we now move the headeroffset in the ip class instead
   myFrame->answer(theData, theLength);
   delete myFrame;
 }

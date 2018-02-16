@@ -95,6 +95,8 @@ void
 IPInPacket::answer(byte* theData, udword theLength) {
   // cast to ip header again, and set the values
   //cout << "headl: " << theLength << endl;
+  theLength += headerOffset();
+  theData -= headerOffset();
   IPHeader * myIpHeader = (IPHeader*) (theData);
   myIpHeader->identification = HILO(sequenceNumber++);
   myIpHeader->versionNHeaderLength = 0x45;
