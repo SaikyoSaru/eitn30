@@ -50,8 +50,8 @@ ICMPInPacket::decode() {
 void
 ICMPInPacket::answer(byte* theData, udword theLength) {
   // decrement the data pointer and add the header length
-  theData -= myFrame->headerOffset();
-  theLength += myFrame->headerOffset();
+  //theData -= myFrame->headerOffset();
+  //theLength += myFrame->headerOffset();
   myFrame->answer((theData) , theLength);
   delete myFrame;
 }
