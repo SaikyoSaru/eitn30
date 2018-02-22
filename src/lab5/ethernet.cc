@@ -386,7 +386,7 @@ Ethernet::decodeReceivedPacket()
   // STUFF: Create and schedule an EthernetJob to decode the EthernetInPacket
 EthernetJob *eJob = new EthernetJob(eip);
 Job::schedule(eJob);
-
+//delete eJob;
 
 }
 
@@ -535,6 +535,7 @@ void EthernetJob::doit() {
 
   myPacket->decode();
   delete myPacket;
+  delete this;
 }
 
 

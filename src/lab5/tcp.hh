@@ -254,6 +254,7 @@ class EstablishedState : public TCPState
   static EstablishedState* instance();
 
   void NetClose(TCPConnection* theConnection);
+  void AppClose(TCPConnection* theConnection);
   // Handle an incoming FIN segment
   void Receive(TCPConnection* theConnection,
                udword theSynchronizationNumber,
@@ -336,6 +337,32 @@ class LastAckState : public TCPState
 *% SUBCLASSING  : None.
 *%
 *%***************************************************************************/
+
+class FinWait1State : public TCPState
+{
+ public:
+  static FinWait1State* instance();
+
+  void Acknowledge(TCPConnection* theConnection);
+
+
+ protected:
+  FinWait1State() {}
+};
+
+class FinWait2State : public TCPState
+{
+ public:
+  static FinWait2State* instance();
+
+  void NetClose(TCPConnection* theConnection);
+
+
+ protected:
+  FinWait2State() {}
+};
+
+
 class TCPSender
 {
  public:

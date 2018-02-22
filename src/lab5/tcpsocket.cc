@@ -14,8 +14,8 @@ extern "C"
 #include "tcpsocket.hh"
 
 
-#define D_TCP
-#ifdef D_TCP
+#define D_TCPSOCKET
+#ifdef D_TCPSOCKET
 #define trace cout
 #else
 #define trace if(false) cout
@@ -71,8 +71,9 @@ TCPSocket::Write(byte* theData, udword theLength)//Copied
 void
 TCPSocket::Close()
 {
+  //myConnection->myState->FinWait1State::instance();
   myConnection->AppClose();
-  //~TCPSocket(); //maybe?
+  //delete this;
 }
 //----------------------------------------------------------------------------
 //
@@ -115,7 +116,6 @@ SimpleApplication::SimpleApplication(TCPSocket* theSocket):
 void
 SimpleApplication::doit() //Copied
 {
-//  cout << "work work" << endl;
   udword aLength;
   byte* aData;
   bool done = false;
@@ -130,7 +130,6 @@ SimpleApplication::doit() //Copied
       if ((char)*aData == 'q')
       {
         done = true;
-        //cout << "work done true" << endl;
       }
       delete aData;
     }
