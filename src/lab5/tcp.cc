@@ -293,7 +293,7 @@ void
 TCPState::Acknowledge(TCPConnection* theConnection,
                          udword theAcknowledgementNumber)
 {
-  cout << "dumb dumb dumb" << endl;
+//  cout << "dumb dumb dumb" << endl;
 
   //EstablishedState::instance()->Acknowledge(theConnection, theAcknowledgementNumber);
 }
@@ -568,12 +568,13 @@ LastAckState::Acknowledge(TCPConnection* theConnection,
 FinWait1State*
 FinWait1State::instance(){
   static FinWait1State myInstance;
+  //cout << "finwait1" << endl;
   return &myInstance;
 }
 
 void
-FinWait1State::Acknowledge(TCPConnection* theConnection){
-  cout << "ack finwait1" << endl;
+FinWait1State::Acknowledge(TCPConnection* theConnection, udword acknowledgementNumber){
+  //cout << "ack finwait1" << endl;
   theConnection->myState = FinWait2State::instance();
 }
 
@@ -583,14 +584,16 @@ FinWait1State::Acknowledge(TCPConnection* theConnection){
 
 FinWait2State*
 FinWait2State::instance(){
+  //cout << "FinWait2State" << endl;
   static FinWait2State myInstance;
   return &myInstance;
 }
 
 void
 FinWait2State::NetClose(TCPConnection* theConnection){
-  cout << "send??" << endl;
+  cout << "netclose FinWait2State" << endl;
   theConnection->receiveNext += 1;
+  theConnection->sendNext += 1;
   theConnection->myTCPSender->sendFlags(0x10);
   theConnection->Kill();
 }
@@ -766,11 +769,18 @@ if ((aTCPHeader->flags & 0x10 ) != 0) {
 
     }
       else if ((aTCPHeader->flags & 0x08) != 0) {
+      //  cout << "Receive data decode" << endl;
         //got data
         aConnection->Receive(mySequenceNumber,
                           myData + headerOffset(),
                           myLength - headerOffset());
     } else { // check for ack
+    /*  cout << "we got an ack" << endl;
+      if(aConnection->myState == FinWait1State::instance()) {
+          cout << "in finwait1state decode" << endl;
+        }
+    */
+
       aConnection->Acknowledge(myAcknowledgementNumber);
      }
     }
@@ -789,6 +799,7 @@ void
 TCPInPacket::answer(byte* theData, udword theLength){
   // we now move the headeroffset in the ip class instead
   myFrame->answer(theData, theLength);
+  //cout << "delete 1" << endl;
   delete myFrame;
 }
 

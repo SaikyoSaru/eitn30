@@ -343,7 +343,7 @@ class FinWait1State : public TCPState
  public:
   static FinWait1State* instance();
 
-  void Acknowledge(TCPConnection* theConnection);
+  void Acknowledge(TCPConnection* theConnection, udword acknowledgementNumber);
 
 
  protected:

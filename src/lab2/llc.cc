@@ -97,6 +97,7 @@ void
 LLCInPacket::answer(byte *theData, udword theLength)
 {
   myFrame->answer(theData, theLength);
+  cout << "delete frame" << endl;
   delete myFrame;
 }
 
