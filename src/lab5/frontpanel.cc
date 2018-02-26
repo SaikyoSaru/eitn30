@@ -100,7 +100,7 @@ void
 CDLEDTimer::timerNotify()
 {
 	FrontPanel::instance().notifyLedEvent(FrontPanel::cdLedId);
-	cout << "Core" << ax_coreleft_total() << endl;
+
 }
 
 /****************** FrontPanel ******************/
@@ -158,6 +158,7 @@ FrontPanel::doit()
 	{
 		mySemaphore->wait();
 		if(netLedEvent){
+			cout << "Core" << ax_coreleft_total() << endl;
 			myNetworkLED.toggle();
 			netLedEvent = false;
 		}

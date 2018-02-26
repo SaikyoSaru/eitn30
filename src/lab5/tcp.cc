@@ -201,6 +201,7 @@ void
 TCPConnection::Receive(udword theSynchronizationNumber,
              byte*  theData,
              udword theLength){
+
   myState->Receive(this,
                   theSynchronizationNumber,
                   theData,
@@ -328,6 +329,7 @@ ListenState::Synchronize(TCPConnection* theConnection,
    case 7:
      trace << "got SYN on ECHO port" << endl;
      theConnection->receiveNext = theSynchronizationNumber + 1; // look below
+     cout << "their sync num" << (udword) theSynchronizationNumber +1 << endl;
      // acknumber , we ack on their sequenceNumber -> acknowledgementNumber = receiveNext
      theConnection->receiveWindow = 8*1024;
      theConnection->sendNext = get_time();
@@ -371,6 +373,7 @@ SynRecvdState::Acknowledge(TCPConnection* theConnection,
   {
    case 7:
      trace << "got ACK on ECHO port" << endl;
+     cout << "syncrec ack num: " << (udword) theAcknowledgementNumber << endl;
      theConnection->receiveNext = theAcknowledgementNumber;
      // Next reply to be sent.
      theConnection->sentUnAcked = theConnection->sendNext; // prob unnecessary
@@ -433,7 +436,7 @@ EstablishedState::AppClose(TCPConnection* theConnection ) {
 //  theConnection->sendNext += 1;
 
 //  theConnection->sentUnAcked = theConnection->sendNext;
-  cout << "app close" << endl;
+  //cout << "app close" << endl;
 
   theConnection->myState = FinWait1State::instance();
   theConnection->myTCPSender->sendFlags(0x11); //fin/ack maybe only ack
@@ -467,11 +470,12 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
     switch (theConnection->myPort)
     {
      case 7:
-     cout << "estab ack" << endl;
+     //cout << "estab ack" << endl;
        // Next reply to be sent.
        // Send a segment with the ACK flag set.
        // Prepare for the next send operation.
-       theConnection->sendNext = theAcknowledgementNumber;
+       //cout << "sqn: " << theConnection->sendNext << " ackn: " << theConnection->receiveNext << endl;
+       //theConnection->sendNext = theAcknowledgementNumber; no es updato el numero
        // Change state
        break;
      default:
@@ -516,9 +520,10 @@ CloseWaitState::instance()
 
 void
 CloseWaitState::AppClose(TCPConnection* theConnection) {
-  cout << "right place CloseWaitState" << endl;
+//  cout << "right place CloseWaitState" << endl;
   theConnection->myState = LastAckState::instance();
-  theConnection->myState->Acknowledge(theConnection, theConnection->receiveNext + 1);
+  theConnection->receiveNext += 1;
+  theConnection->myState->Acknowledge(theConnection, theConnection->receiveNext);
 //  theConnection->myState = TCPState::instance();
   theConnection->Kill(); // prob wrong?? first get to LastAckState??
 }
@@ -543,9 +548,11 @@ LastAckState::Acknowledge(TCPConnection* theConnection,
     switch (theConnection->myPort)
     {
      case 7:
+  //  cout << "ack num: " << (udword) theAcknowledgementNumber<< endl;
        // Next reply to be sent.
        // Send a segment with the ACK flag set.
        // Prepare for the next send operation.
+       //theConnection->sendNext
        theConnection->receiveNext = theAcknowledgementNumber;
        theConnection->myTCPSender->sendFlags(0x10);
        // Change state
@@ -676,7 +683,8 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   uword pseudosum = aPseudoHeader->checksum();
 
   delete aPseudoHeader;
-  memcpy(anAnswer + TCP::tcpHeaderLength, theData, theLength);
+  memcpy((anAnswer + TCP::tcpHeaderLength), theData, theLength);
+  cout << "theData length :" << theLength  << "data pointer " <<(udword)theData << endl;
 
 
   // Create the TCP segment.
@@ -724,6 +732,7 @@ TCPInPacket::decode()
   // Extract the parameters from the TCP header which define the
   // connection.
   //create a tcpheader
+  //cout << "Core in decode" << ax_coreleft_total() << endl;
 
   TCPHeader* aTCPHeader = (TCPHeader*)myData;
   mySourcePort = HILO(aTCPHeader->sourcePort);
@@ -744,6 +753,8 @@ TCPInPacket::decode()
                                           mySourcePort,
                                           myDestinationPort,
                                           this);
+    //cout << "Core after shit is created" << ax_coreleft_total() << endl;
+
     if ((aTCPHeader->flags & 0x02) != 0)
     {
       // State LISTEN. Received a SYN flag.
@@ -781,7 +792,7 @@ if ((aTCPHeader->flags & 0x10 ) != 0) {
         }
     */
 
-      aConnection->Acknowledge(myAcknowledgementNumber);
+      aConnection->Acknowledge(mySequenceNumber);
      }
     }
   }

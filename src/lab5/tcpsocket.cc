@@ -62,6 +62,8 @@ TCPSocket::isEof(){
 void
 TCPSocket::Write(byte* theData, udword theLength)//Copied
 {
+  cout << "the len: sent" << theLength << " pointer: "<<(udword)theData <<  endl;
+
   myConnection->Send(theData, theLength);
   myWriteSemaphore->wait(); // Wait until the data is acknowledged
 }
@@ -80,6 +82,7 @@ TCPSocket::Close()
 void
 TCPSocket::socketDataReceived(byte* theData, udword theLength)//Copied
 {
+  cout << "the len received: " << theLength << " pointer: "<<(udword)theData <<  endl;
   myReadData = new byte[theLength];
   memcpy(myReadData, theData, theLength);
   myReadLength = theLength;
@@ -119,10 +122,11 @@ SimpleApplication::doit() //Copied
   udword aLength;
   byte* aData;
   bool done = false;
-//  cout << done << " and " << mySocket->isEof() << endl;
+  //cout << done << " and " << mySocket->isEof() << endl;
 
   while (!done && !mySocket->isEof())
   {
+    //cout << "Core in socket" << ax_coreleft_total() << endl;
     aData = mySocket->Read(aLength);
     if (aLength > 0)
     {
