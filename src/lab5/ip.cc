@@ -77,13 +77,13 @@ IPInPacket::decode()
         } else if(myProtocol == 0x06){
 
           byte *tcpP = myData + headerOffset();
-          TCPInPacket tcp((tcpP),
+          TCPInPacket* tcp = new TCPInPacket((tcpP),
                                 realPacketLength - headerOffset(),
                                 this,
                                 mySourceIPAddress);
         //  cout << "ip decode" << endl;
-          tcp.decode();
-          //delete tcp;
+          tcp->decode();
+          delete tcp;
         } else {
           cout << "not tcp and not icmp" << endl;
         }

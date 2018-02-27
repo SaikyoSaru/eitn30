@@ -55,16 +55,16 @@ LLCInPacket::decode()
 	(myLength > 28)) //ip packet //// &&(*(myData + 20) == 8) // removed since tcp did not get through
   {
 
-    IPInPacket ipPacket(myData, myLength, myFrame);
+    IPInPacket* ipPacket = new IPInPacket(myData, myLength, myFrame);
     //cout << "llc decode" << endl;
-    ipPacket.decode();
-    //delete ipPacket;
+    ipPacket->decode();
+    delete ipPacket;
 
 	} else if (myTypeLen == 0x806) { // arp packet, Maybe add mylength == 28 here
     //cout << "arp packet" << endl;
-    ARPInPacket arpPacket(myData, myLength, myFrame);
-    arpPacket.decode();
-    //delete arpPacket;
+    ARPInPacket* arpPacket = new ARPInPacket(myData, myLength, myFrame);
+    arpPacket->decode();
+    delete arpPacket;
   }
   //cout << "stuff" << endl;
 

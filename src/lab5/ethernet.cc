@@ -564,7 +564,7 @@ void EthernetInPacket::decode()
                                 mySourceAddress,
                                 myTypeLen);
 lccPacket->decode();
-delete lccPacket;
+lccPacket;
 
 Ethernet::instance().returnRXBuffer();
 
