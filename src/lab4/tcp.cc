@@ -211,13 +211,13 @@ TCPState::Synchronize(TCPConnection* theConnection,
 void
 TCPState::NetClose(TCPConnection* theConnection)
 {
-  EstablishedState::instance()->NetClose(theConnection);
+  //EstablishedState::instance()->NetClose(theConnection);
 }
 // Handle an incoming FIN segment
 void
 TCPState::AppClose(TCPConnection* theConnection)
 {
-  CloseWaitState::instance()->AppClose(theConnection);
+//  CloseWaitState::instance()->AppClose(theConnection);
 }
 // Handle close from application
 void
@@ -233,17 +233,17 @@ TCPState::Receive(TCPConnection* theConnection,
                      byte*  theData,
                      udword theLength)
 {
-  EstablishedState::instance()->Receive(theConnection,
-               theSynchronizationNumber,
-               theData,
-               theLength);
+  // EstablishedState::instance()->Receive(theConnection,
+  //              theSynchronizationNumber,
+  //              theData,
+  //              theLength);
 }
 // Handle incoming data
 void
 TCPState::Acknowledge(TCPConnection* theConnection,
                          udword theAcknowledgementNumber)
 {
-  EstablishedState::instance()->Acknowledge(theConnection, theAcknowledgementNumber);
+  //EstablishedState::instance()->Acknowledge(theConnection, theAcknowledgementNumber);
 }
 // Handle incoming Acknowledgement
 void
@@ -251,7 +251,7 @@ TCPState::Send(TCPConnection* theConnection,
                   byte*  theData,
                   udword theLength)
 {
-  EstablishedState::instance()->Send(theConnection, theData, theLength);
+  //EstablishedState::instance()->Send(theConnection, theData, theLength);
 }
 
 

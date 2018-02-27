@@ -87,6 +87,7 @@ void
 StatusLEDTimer::timerNotify()
 {
 	FrontPanel::instance().notifyLedEvent(FrontPanel::statusLedId);
+	cout << "Core" << ax_coreleft_total() << endl;
 }
 
 /****************** CDLEDTimer ******************/
@@ -100,7 +101,7 @@ void
 CDLEDTimer::timerNotify()
 {
 	FrontPanel::instance().notifyLedEvent(FrontPanel::cdLedId);
-	cout << "Core" << ax_coreleft_total() << endl;
+
 }
 
 /****************** FrontPanel ******************/

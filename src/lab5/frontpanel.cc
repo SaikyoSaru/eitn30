@@ -100,6 +100,7 @@ void
 CDLEDTimer::timerNotify()
 {
 	FrontPanel::instance().notifyLedEvent(FrontPanel::cdLedId);
+	cout << "Core" << ax_coreleft_total() << endl;
 
 }
 
@@ -151,14 +152,13 @@ FrontPanel::doit()
 {
 	//cout << "DOIT FRONTPANEL" << endl;
 	myNetworkLEDTimer = new NetworkLEDTimer(1);
-	myCDLEDTimer = new CDLEDTimer(Clock::seconds * 10);
+	myCDLEDTimer = new CDLEDTimer(Clock::seconds * 2);
 	myStatusLEDTimer = new StatusLEDTimer(Clock::seconds * 3);
 
 	while(1)
 	{
 		mySemaphore->wait();
 		if(netLedEvent){
-			cout << "Core" << ax_coreleft_total() << endl;
 			myNetworkLED.toggle();
 			netLedEvent = false;
 		}

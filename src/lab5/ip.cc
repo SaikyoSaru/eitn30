@@ -54,30 +54,36 @@ InPacket(theData, theLength, theFrame)
 //----------------------------------------------------------------------------
 
 void
-IPInPacket::decode() {
+IPInPacket::decode()
+{
   //cast data to ip header
   IPHeader* myIpHeader = (IPHeader*) myData;
   // check if its for us
   if ((myIpHeader->destinationIPAddress) == IP::instance().myAddress())
   {
-    if (myIpHeader->versionNHeaderLength == 0x45){ // version and headerelength ok
-      if ((HILO(myIpHeader->fragmentFlagsNOffset) & 0x3FFF) == 0 ) { // fragment ok
+    if (myIpHeader->versionNHeaderLength == 0x45){
+      // version and headerelength ok
+      if ((HILO(myIpHeader->fragmentFlagsNOffset) & 0x3FFF) == 0 ) {
+         // fragment ok
         myProtocol = myIpHeader->protocol;
         uword realPacketLength = HILO(myIpHeader->totalLength);
         mySourceIPAddress = (myIpHeader->sourceIPAddress);
+
         if(myProtocol == 0x1) {
           byte* icmp = myData + headerOffset();
           ICMPInPacket* aICMP = new ICMPInPacket(icmp, realPacketLength - headerOffset(), this);
           aICMP->decode();
           delete aICMP; // get rid of memory leak
-        } else if(myProtocol == 6){
+        } else if(myProtocol == 0x06){
+
           byte *tcpP = myData + headerOffset();
-          TCPInPacket* tcp = new TCPInPacket((tcpP),
+          TCPInPacket tcp((tcpP),
                                 realPacketLength - headerOffset(),
                                 this,
                                 mySourceIPAddress);
-          tcp->decode();
-          delete tcp;
+        //  cout << "ip decode" << endl;
+          tcp.decode();
+          //delete tcp;
         } else {
           cout << "not tcp and not icmp" << endl;
         }
@@ -91,7 +97,9 @@ IPInPacket::decode() {
 //-----------------------------------------------------------------------------
 
 void
-IPInPacket::answer(byte* theData, udword theLength) {
+IPInPacket::answer(byte* theData, udword theLength)
+{
+
   // cast to ip header again, and set the values
   theLength += headerOffset();
   theData -= headerOffset();
@@ -108,6 +116,8 @@ IPInPacket::answer(byte* theData, udword theLength) {
   myIpHeader->destinationIPAddress = mySourceIPAddress;
   myIpHeader->headerChecksum = calculateChecksum(theData, this->headerOffset(), 0);
   // call answer in llc
+
+
   myFrame->answer((byte*)myIpHeader, theLength);
   //delete myFrame;
 }

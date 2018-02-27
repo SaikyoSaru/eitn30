@@ -55,6 +55,8 @@ TCP::getConnection(IPAddress& theSourceAddress,
                    uword      theSourcePort,
                    uword      theDestinationPort)
 {
+  //cout << "Core get connection1: " << ax_coreleft_total() << endl;
+
   TCPConnection* aConnection = NULL;
   // Find among open connections
   uword queueLength = myConnectionList.Length();
@@ -75,6 +77,7 @@ TCP::getConnection(IPAddress& theSourceAddress,
   else
   {
     trace << "Found connection in queue" << endl;
+
   }
   return aConnection;
 }
@@ -154,7 +157,7 @@ TCPConnection::~TCPConnection()
   trace << "TCP connection destroyed" << endl;
   delete myTCPSender;
   //delete myState; // fixed the continous spam of delete chain
-  //delete mySocket;
+  //delete mySocket;  //wip testing
 }
 
 //----------------------------------------------------------------------------
@@ -327,9 +330,9 @@ ListenState::Synchronize(TCPConnection* theConnection,
   switch (theConnection->myPort)
   {
    case 7:
-     trace << "got SYN on ECHO port" << endl;
+    // trace << "got SYN on ECHO port" << endl;
      theConnection->receiveNext = theSynchronizationNumber + 1; // look below
-     cout << "their sync num" << (udword) theSynchronizationNumber +1 << endl;
+     //cout << "their sync num" << (udword) theSynchronizationNumber +1 << endl;
      // acknumber , we ack on their sequenceNumber -> acknowledgementNumber = receiveNext
      theConnection->receiveWindow = 8*1024;
      theConnection->sendNext = get_time();
@@ -372,8 +375,8 @@ SynRecvdState::Acknowledge(TCPConnection* theConnection,
   switch (theConnection->myPort)
   {
    case 7:
-     trace << "got ACK on ECHO port" << endl;
-     cout << "syncrec ack num: " << (udword) theAcknowledgementNumber << endl;
+     //trace << "got ACK on ECHO port" << endl;
+     //cout << "syncrec ack num: " << (udword) theAcknowledgementNumber << endl;
      theConnection->receiveNext = theAcknowledgementNumber;
      // Next reply to be sent.
      theConnection->sentUnAcked = theConnection->sendNext; // prob unnecessary
@@ -413,14 +416,14 @@ EstablishedState::instance()
 void
 EstablishedState::NetClose(TCPConnection* theConnection)
 {
-  trace << "EstablishedState::NetClose" << endl;
+  //trace << "EstablishedState::NetClose" << endl;
 
   // Update connection variables and send an ACK
 
   // Go to NetClose wait state, inform application
 
-  theConnection->mySocket->socketEof();
   theConnection->myState = CloseWaitState::instance();
+  theConnection->mySocket->socketEof();
 
   // Normally the application would be notified next and nothing
   // happen until the application calls appClose on the connection.
@@ -433,13 +436,14 @@ EstablishedState::NetClose(TCPConnection* theConnection)
 void
 EstablishedState::AppClose(TCPConnection* theConnection ) {
 //  theConnection->receiveNext += 1;
-//  theConnection->sendNext += 1;
 
 //  theConnection->sentUnAcked = theConnection->sendNext;
   //cout << "app close" << endl;
 
   theConnection->myState = FinWait1State::instance();
   theConnection->myTCPSender->sendFlags(0x11); //fin/ack maybe only ack
+  //theConnection->sendNext += 1; // new
+
 }
 
 
@@ -452,12 +456,13 @@ EstablishedState::Receive(TCPConnection* theConnection,
                           byte*  theData,
                           udword theLength)
 {
-  trace << "EstablishedState::Receive" << endl;
+//  trace << "EstablishedState::Receive" << endl;
 
   // Delayed ACK is not implemented, simply acknowledge the data
   // by sending an ACK segment, then echo the data using Send.
   //theConnection->receiveNext = theSynchronizationNumber + (theLength - 20);
   theConnection->receiveNext = theSynchronizationNumber + theLength; // WIP
+  theConnection->myTCPSender->sendFlags(0x10);
   theConnection->mySocket->socketDataReceived(theData, theLength);
 }
 
@@ -477,6 +482,7 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
        //cout << "sqn: " << theConnection->sendNext << " ackn: " << theConnection->receiveNext << endl;
        //theConnection->sendNext = theAcknowledgementNumber; no es updato el numero
        // Change state
+       theConnection->sentUnAcked = theAcknowledgementNumber; //wip
        break;
      default:
        trace << "send RST..." << endl;
@@ -665,6 +671,7 @@ TCPSender::sendFlags(byte theFlags)
 
 void
 TCPSender::sendData(byte*  theData, udword theLength) {
+  //cout << "sent data" << endl;
 /*
   cout << "the length: " << theLength << endl;
   byte* pM = (byte*) theData;
@@ -673,9 +680,11 @@ TCPSender::sendData(byte*  theData, udword theLength) {
       ax_printf("\r\n");
       */
   // Calculate the pseudo header checksum
-  uword totalSegmentLength = TCP::tcpHeaderLength + theLength;
+  uword totalSegmentLength = 20 + theLength;
   byte* anAnswer = new byte[totalSegmentLength];
-
+  // for (int i=0; i<totalSegmentLength; i++)
+  //   ax_printf(" %2.2X",anAnswer[i]);
+  // ax_printf("\r\n");
 //create header and memcpy
   TCPPseudoHeader* aPseudoHeader =
     new TCPPseudoHeader(myConnection->hisAddress,
@@ -683,8 +692,16 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   uword pseudosum = aPseudoHeader->checksum();
 
   delete aPseudoHeader;
-  memcpy((anAnswer + TCP::tcpHeaderLength), theData, theLength);
-  cout << "theData length :" << theLength  << "data pointer " <<(udword)theData << endl;
+//  cout << "Core send data1: " << ax_coreleft_total() << endl;
+  memcpy((byte*)(anAnswer + 20), theData, theLength);
+  // for (int i=0; i<theLength; i++)
+  //   ax_printf(" %2.2X",theData[i]);
+  // ax_printf("\r\n");
+  // cout << "Core send data2: " << ax_coreleft_total() << endl;
+  //for (int i=0; i<totalSegmentLength; i++)
+  // cout << "theData length :" << theLength  << "data pointer " <<(udword)theData << endl;
+  //   ax_printf(" %2.2X",anAnswer[i]);
+  // ax_printf("\r\n");
 
 
   // Create the TCP segment.
@@ -699,13 +716,14 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   aTCPHeader->checksum = 0;
   aTCPHeader->urgentPointer = 0;
   aTCPHeader->windowSize = HILO(myConnection->receiveWindow); //???
-  aTCPHeader->checksum = calculateChecksum((byte*)aTCPHeader,
+  aTCPHeader->checksum = calculateChecksum(anAnswer,
                                            totalSegmentLength,
                                            pseudosum);
 
 
-  myAnswerChain->answer((byte*)aTCPHeader, //(byte*)aTCPHeader
+  myAnswerChain->answer(anAnswer, //(byte*)aTCPHeader
                         totalSegmentLength);
+
   delete anAnswer;
   // Deallocate the dynamic memory
 
@@ -729,10 +747,12 @@ TCPInPacket::TCPInPacket(byte*           theData,
 void
 TCPInPacket::decode()
 {
+
+
   // Extract the parameters from the TCP header which define the
   // connection.
   //create a tcpheader
-  //cout << "Core in decode" << ax_coreleft_total() << endl;
+
 
   TCPHeader* aTCPHeader = (TCPHeader*)myData;
   mySourcePort = HILO(aTCPHeader->sourcePort);
@@ -796,6 +816,7 @@ if ((aTCPHeader->flags & 0x10 ) != 0) {
      }
     }
   }
+//  cout << "Core decode 2: " << ax_coreleft_total() << endl;
 }
 
 //----------------------------------------------------------------------------
@@ -803,15 +824,21 @@ if ((aTCPHeader->flags & 0x10 ) != 0) {
 InPacket*
 TCPInPacket::copyAnswerChain()
 {
+  // TCPInPacket* anAnswerPacket = new TCPInPacket(*this);
+  // anAnswerPacket->setNewFrame(myFrame->copyAnswerChain());
+  // return anAnswerPacket;
   return myFrame->copyAnswerChain();
 }
 
 void
 TCPInPacket::answer(byte* theData, udword theLength){
+  //cout << "Why not run?" << endl;
+
   // we now move the headeroffset in the ip class instead
   myFrame->answer(theData, theLength);
   //cout << "delete 1" << endl;
-  delete myFrame;
+
+  //delete myFrame;
 }
 
 uword

@@ -34,7 +34,9 @@ TCPSocket::TCPSocket(TCPConnection* theConnection):
 //
 TCPSocket::~TCPSocket()
 {
-  delete myConnection;
+  //delete myConnection;
+  delete myReadSemaphore;
+  delete myWriteSemaphore;
 }
 
 //----------------------------------------------------------------------------
@@ -62,7 +64,7 @@ TCPSocket::isEof(){
 void
 TCPSocket::Write(byte* theData, udword theLength)//Copied
 {
-  cout << "the len: sent" << theLength << " pointer: "<<(udword)theData <<  endl;
+  //cout << "the len: sent" << theLength << " pointer: "<<(udword)theData <<  endl;
 
   myConnection->Send(theData, theLength);
   myWriteSemaphore->wait(); // Wait until the data is acknowledged
@@ -82,7 +84,7 @@ TCPSocket::Close()
 void
 TCPSocket::socketDataReceived(byte* theData, udword theLength)//Copied
 {
-  cout << "the len received: " << theLength << " pointer: "<<(udword)theData <<  endl;
+  //cout << "the len received: " << theLength << " pointer: "<<(udword)theData <<  endl;
   myReadData = new byte[theLength];
   memcpy(myReadData, theData, theLength);
   myReadLength = theLength;
