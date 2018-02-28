@@ -537,7 +537,7 @@ void EthernetJob::doit() {
   //cout << "do it" << endl;
   myPacket->decode();
   delete myPacket;
-  delete this;
+  //delete this;
 }
 
 
@@ -564,7 +564,7 @@ void EthernetInPacket::decode()
                                 mySourceAddress,
                                 myTypeLen);
 lccPacket->decode();
-lccPacket;
+delete lccPacket;
 
 Ethernet::instance().returnRXBuffer();
 
