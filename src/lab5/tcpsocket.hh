@@ -15,6 +15,7 @@
 #include "job.hh"
 #include "threads.hh"
 
+
 /****************** CLASS DEFINITION SECTION ********************************/
 
 /*****************************************************************************
@@ -109,12 +110,14 @@ class SimpleApplication : public Job
   // established.
 
   void doit();
+  //
   // Gets called when the application thread begins execution.
   // The SimpleApplication job is scheduled by TCP when a connection is
   // established.
-
+  void generateData(byte* data, udword len);
  private:
   TCPSocket* mySocket;
+
   // Pointer to the application associated with this job.
 };
 

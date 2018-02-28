@@ -133,12 +133,33 @@ SimpleApplication::doit() //Copied
     if (aLength > 0)
     {
       mySocket->Write(aData, aLength);
-      if ((char)*aData == 'q')
-      {
+      if ((char)*aData == 'q') {
         done = true;
+      } else if ((char)*aData == 's'){
+        udword len = 10000;
+        byte* data = new byte[len];
+        generateData(data, len);
+        mySocket->Write(data, len);
+        delete data;
       }
       delete aData;
     }
   }
   mySocket->Close();
+}
+
+
+void
+SimpleApplication::generateData(byte* data, udword len) {
+    //data = new byte[len];
+    for (udword i=0; i<len; i++) {
+      data[i] = 'b';
+      if(i%5 == 0){
+        data[i] = 'n';
+      }
+    }
+    // for (udword i=0; i<len; i++) {
+    //   cout << data[i] << endl;
+    // }
+
 }

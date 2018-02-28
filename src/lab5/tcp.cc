@@ -484,6 +484,12 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
        //theConnection->sendNext = theAcknowledgementNumber; no es updato el numero
        // Change state
        theConnection->sentUnAcked = theAcknowledgementNumber; //wip
+       if (theConnection->queueLength > 0) {
+         theConnection->myTCPSender->sendFromQueue();
+       }
+
+
+
        break;
      default:
        trace << "send RST..." << endl;
@@ -504,9 +510,16 @@ EstablishedState::Send(TCPConnection* theConnection,
           udword theLength)
 {
   //cout << "data sent before" << endl;
-  theConnection->myTCPSender->sendData(theData, theLength);
-  theConnection->sendNext += theLength;
-  //cout << "data sent after" << endl;
+  //initialize the sending queue
+  theConnection->transmitQueue = theData;
+  theConnection->queueLength = theLength;
+  theConnection->firstSeq = theConnection->sendNext;
+  theConnection->myTCPSender->sendFromQueue();
+  // theConnection->myTCPSender->sendData(theData, theLength);
+  // theConnection->sendNext += theLength;
+  //
+  // //cout << "data sent after" << endl;
+  //all data sent -> notify and release sem
   theConnection->mySocket->socketDataSent();
 }
 // Send outgoing data
@@ -675,6 +688,7 @@ void
 TCPSender::sendData(byte*  theData, udword theLength) {
   //cout << "sent data" << endl;
   // Calculate the pseudo header checksum
+
   uword totalSegmentLength = 20 + theLength;
   byte* anAnswer = new byte[totalSegmentLength];
 
@@ -710,12 +724,27 @@ TCPSender::sendData(byte*  theData, udword theLength) {
 
   delete anAnswer;
   // Deallocate the dynamic memory
-
-
 }
 
 
+//-----------------------------------------------------------------------------
+//
 
+void
+TCPSender::sendFromQueue(){
+  if(myConnection->queueLength > TCP::maxSegmentLength) {
+    sendData(myConnection->transmitQueue, TCP::maxSegmentLength);
+    myConnection->sendNext += TCP::maxSegmentLength;
+    myConnection->queueLength -= TCP::maxSegmentLength;
+    myConnection->transmitQueue += TCP::maxSegmentLength;
+  } else {
+    sendData(myConnection->transmitQueue, myConnection->queueLength);
+    myConnection->sendNext += myConnection->queueLength;
+    myConnection->queueLength = 0;
+
+  }
+
+}
 
 //----------------------------------------------------------------------------
 //

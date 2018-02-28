@@ -57,7 +57,7 @@ class TCP
   // Create a new TCPSocket. Register it in TCPConnection.
   // Create and start a SimpleApplication.
 
-  enum { tcpHeaderLength = 20 };
+  enum { tcpHeaderLength = 20, maxSegmentLength = 1460 };
 
  private:
   TCP();
@@ -142,6 +142,12 @@ class TCPConnection
   TCPSocket* mySocket;
   TCPSender* myTCPSender;
   TCPState*  myState;
+
+  byte* transmitQueue; // a reference to the data to be sent,
+  udword queueLength; // the number of data to be sent, and
+  udword firstSeq; // the sequence number of the first byte in the queue.
+
+
 };
 
 /*****************************************************************************
@@ -375,6 +381,8 @@ class TCPSender
   void sendData(byte*  theData,
                 udword theLength);
   // Send a data segment. PSH and ACK flags are set.
+
+  void sendFromQueue();
 
  private:
   TCPConnection* myConnection;
