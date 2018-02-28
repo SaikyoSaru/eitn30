@@ -101,9 +101,11 @@ IPInPacket::answer(byte* theData, udword theLength)
 {
 
   // cast to ip header again, and set the values
-  theLength += headerOffset();
-  theData -= headerOffset();
-  IPHeader * myIpHeader = (IPHeader*) (theData);
+  byte * iphead = new byte[theLength + headerOffset()];
+  memcpy(iphead + headerOffset(), theData, theLength);
+//  theLength += headerOffset();
+//  theData -= headerOffset();
+  IPHeader * myIpHeader = (IPHeader*) (iphead);
   myIpHeader->identification = HILO(sequenceNumber++);
   myIpHeader->versionNHeaderLength = 0x45;
   myIpHeader->TypeOfService = 0x0;
@@ -111,14 +113,15 @@ IPInPacket::answer(byte* theData, udword theLength)
   myIpHeader->timeToLive = 0x40;
   myIpHeader->protocol = myProtocol;
   myIpHeader->headerChecksum = 0;
-  myIpHeader->totalLength = HILO(theLength);
+  myIpHeader->totalLength = HILO(theLength + headerOffset());
   myIpHeader->sourceIPAddress = IP::instance().myAddress();
   myIpHeader->destinationIPAddress = mySourceIPAddress;
-  myIpHeader->headerChecksum = calculateChecksum(theData, this->headerOffset(), 0);
+  myIpHeader->headerChecksum = calculateChecksum(iphead, this->headerOffset(), 0);
   // call answer in llc
 
 
-  myFrame->answer((byte*)myIpHeader, theLength);
+  myFrame->answer((byte*)myIpHeader, theLength + headerOffset());
+  delete iphead;
   //delete myFrame;
 }
 

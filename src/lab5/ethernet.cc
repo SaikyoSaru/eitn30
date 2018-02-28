@@ -575,10 +575,14 @@ void EthernetInPacket::answer(byte* theData, udword theLength){
   for (int i=0;i<60;i++)
       ax_printf(" %2.2X",pM[i]);
     ax_printf("\r\n");*/
-  theData -= this->headerOffset(); // shift pointer to EthernetHeader instead of data
-  EthernetHeader* aHeader = (EthernetHeader*) theData; //header
 
-  theLength += this->headerOffset();
+  //theData -= this->headerOffset(); // shift pointer to EthernetHeader instead of data
+
+  byte * eHead = new byte[theLength + headerOffset()];
+  memcpy(eHead + headerOffset(), theData, theLength);
+  EthernetHeader* aHeader = (EthernetHeader*) eHead; //header
+
+  //theLength += this->headerOffset();
   //cout << "Core ethernet 2: " << ax_coreleft_total() << endl;
 
   aHeader->destinationAddress = mySourceAddress;
@@ -590,8 +594,8 @@ void EthernetInPacket::answer(byte* theData, udword theLength){
   aHeader->typeLen = (((myTypeLen & 0x00ff) << 8) |
                      ((myTypeLen & 0xff00) >> 8)); // change endianess
   trace << "send packet, length:" << theLength << " dst: " << aHeader->destinationAddress << " src: " << aHeader->sourceAddress << endl;
-  Ethernet::instance().transmittPacket(theData, theLength);
-  delete theData;
+  Ethernet::instance().transmittPacket(eHead, theLength + headerOffset());
+  delete eHead;
 
 }
 
