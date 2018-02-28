@@ -381,6 +381,7 @@ Ethernet::decodeReceivedPacket()
     memcpy((wrappedPacket + length1), data2, length2);
     // STUFF: Create an EternetInPacket
     eip = new EthernetInPacket(wrappedPacket, length1 + length2, 0);
+    delete wrappedPacket; //wip
   }
 
   // STUFF: Create and schedule an EthernetJob to decode the EthernetInPacket

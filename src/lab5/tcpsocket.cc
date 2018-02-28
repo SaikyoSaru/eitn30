@@ -140,7 +140,7 @@ SimpleApplication::doit() //Copied
         byte* data = new byte[len];
         generateData(data, len);
         mySocket->Write(data, len);
-        delete data;
+        delete data; //wip
       }
       delete aData;
     }

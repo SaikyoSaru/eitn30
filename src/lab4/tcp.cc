@@ -85,10 +85,15 @@ TCP::createConnection(IPAddress& theSourceAddress,
                       uword      theDestinationPort,
                       InPacket*  theCreator)
 {
+  cout << ax_coreleft_total() << " create1 " << endl;
+
   TCPConnection* aConnection =  new TCPConnection(theSourceAddress,
                                                   theSourcePort,
                                                   theDestinationPort,
                                                   theCreator);
+  
+  cout << ax_coreleft_total() << " create2 " << endl;
+
   myConnectionList.Append(aConnection);
   return aConnection;
 }
@@ -98,8 +103,10 @@ TCP::createConnection(IPAddress& theSourceAddress,
 void
 TCP::deleteConnection(TCPConnection* theConnection)
 {
+cout << ax_coreleft_total() << " delete1 " << endl;
   myConnectionList.Remove(theConnection);
   delete theConnection;
+  cout << ax_coreleft_total() << " delete2" << endl;
 }
 
 //----------------------------------------------------------------------------
@@ -112,9 +119,12 @@ TCPConnection::TCPConnection(IPAddress& theSourceAddress,
         hisPort(theSourcePort),
         myPort(theDestinationPort)
 {
+  cout << ax_coreleft_total() << " 1" << endl;
   trace << "TCP connection created" << endl;
   myTCPSender = new TCPSender(this, theCreator),
+  cout << ax_coreleft_total() << " 2" << endl;
   myState = ListenState::instance();
+
 }
 
 //----------------------------------------------------------------------------
@@ -503,7 +513,11 @@ TCPSender::TCPSender(TCPConnection* theConnection,
 //
 TCPSender::~TCPSender()
 {
+  cout << ax_coreleft_total() << " 1 sender" << endl;
+
   myAnswerChain->deleteAnswerChain();
+  cout << ax_coreleft_total() << " 2 sender" << endl;
+
 }
 
 void

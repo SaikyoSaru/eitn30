@@ -462,6 +462,7 @@ EstablishedState::Receive(TCPConnection* theConnection,
   // Delayed ACK is not implemented, simply acknowledge the data
   // by sending an ACK segment, then echo the data using Send.
   //theConnection->receiveNext = theSynchronizationNumber + (theLength - 20);
+  cout << ax_coreleft_total() << "before rec" << endl;
   theConnection->receiveNext = theSynchronizationNumber + theLength; // WIP
   theConnection->myTCPSender->sendFlags(0x10);
   theConnection->mySocket->socketDataReceived(theData, theLength);
@@ -484,7 +485,8 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
        //theConnection->sendNext = theAcknowledgementNumber; no es updato el numero
        // Change state
        theConnection->sentUnAcked = theAcknowledgementNumber; //wip
-       if (theConnection->queueLength > 0) {
+       if (theConnection->queueLength - theConnection->theOffset > 0) {
+         cout << "lololo" << endl;
          theConnection->myTCPSender->sendFromQueue();
        }
 
@@ -511,9 +513,13 @@ EstablishedState::Send(TCPConnection* theConnection,
 {
   //cout << "data sent before" << endl;
   //initialize the sending queue
+  cout << "right before send" << ax_coreleft_total() << endl;
   theConnection->transmitQueue = theData;
   theConnection->queueLength = theLength;
   theConnection->firstSeq = theConnection->sendNext;
+  theConnection->theFirst = theData;
+  theConnection->theOffset = 0;
+  theConnection->theSendLength = 0;
   theConnection->myTCPSender->sendFromQueue();
   // theConnection->myTCPSender->sendData(theData, theLength);
   // theConnection->sendNext += theLength;
@@ -689,7 +695,7 @@ TCPSender::sendData(byte*  theData, udword theLength) {
   //cout << "sent data" << endl;
   // Calculate the pseudo header checksum
 
-  uword totalSegmentLength = 20 + theLength;
+  udword totalSegmentLength = 20 + theLength;
   byte* anAnswer = new byte[totalSegmentLength];
 
   //create header and memcpy
@@ -732,15 +738,24 @@ TCPSender::sendData(byte*  theData, udword theLength) {
 
 void
 TCPSender::sendFromQueue(){
-  if(myConnection->queueLength > TCP::maxSegmentLength) {
-    sendData(myConnection->transmitQueue, TCP::maxSegmentLength);
+
+
+
+  if(myConnection->queueLength - myConnection->theOffset > TCP::maxSegmentLength) {
+    cout << "send packet" << endl;
+    myConnection->theSendLength = TCP::maxSegmentLength;
+    sendData(myConnection->theFirst, myConnection->theSendLength);
     myConnection->sendNext += TCP::maxSegmentLength;
-    myConnection->queueLength -= TCP::maxSegmentLength;
-    myConnection->transmitQueue += TCP::maxSegmentLength;
+    myConnection->theOffset += myConnection->theSendLength;
+    //myConnection->queueLength -= TCP::maxSegmentLength;
+    //myConnection->transmitQueue += TCP::maxSegmentLength;
   } else {
-    sendData(myConnection->transmitQueue, myConnection->queueLength);
-    myConnection->sendNext += myConnection->queueLength;
-    myConnection->queueLength = 0;
+    cout << "right before the send:" << ax_coreleft_total() << endl;
+    myConnection->theSendLength = myConnection->queueLength - myConnection->theOffset;
+    sendData(myConnection->theFirst, myConnection->theSendLength);
+    myConnection->sendNext += myConnection->queueLength - myConnection->theOffset;
+    myConnection->theOffset += myConnection->theSendLength;
+    //myConnection->queueLength = 0;
 
   }
 

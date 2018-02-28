@@ -147,6 +147,10 @@ class TCPConnection
   udword queueLength; // the number of data to be sent, and
   udword firstSeq; // the sequence number of the first byte in the queue.
 
+  udword theOffset; // the first position in the queue relative the variable transmitQueue to send from ,
+  byte* theFirst; //the first byte to send in the segment relative the variable transmitQueue,
+  udword theSendLength; // the number of byte to send in a single segment.
+
 
 };
 
