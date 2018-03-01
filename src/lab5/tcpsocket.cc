@@ -141,6 +141,12 @@ SimpleApplication::doit() //Copied
         generateData(data, len);
         mySocket->Write(data, len);
         delete data; //wip
+      } else if ((char)*aData == 't'){
+        udword len = 1000000;
+        byte* data = new byte[len];
+        generateData(data, len);
+        mySocket->Write(data, len);
+        delete data; //wip
       }
       delete aData;
     }
@@ -152,14 +158,18 @@ SimpleApplication::doit() //Copied
 void
 SimpleApplication::generateData(byte* data, udword len) {
     //data = new byte[len];
+    // char mats [] = "ABCDEFGHIJKLMNOPQRSTUVWXYZMATSHARENKURSS";
+    // for(udword i=0; i<len; i+=40){
+    //   memcpy(data[i], mats, 40);
+    //  }
     for (udword i=0; i<len; i++) {
       data[i] = 'b';
       if(i%5 == 0){
         data[i] = 'n';
+        if (i%1000 == 0) {
+          data[i] = 'i';
+        }
       }
     }
-    // for (udword i=0; i<len; i++) {
-    //   cout << data[i] << endl;
-    // }
 
 }

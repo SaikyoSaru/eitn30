@@ -122,6 +122,7 @@ IPInPacket::answer(byte* theData, udword theLength)
 
   myFrame->answer((byte*)myIpHeader, theLength + headerOffset());
   delete iphead;
+  delete theData;
   //delete myFrame;
 }
 

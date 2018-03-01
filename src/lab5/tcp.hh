@@ -151,6 +151,8 @@ class TCPConnection
   byte* theFirst; //the first byte to send in the segment relative the variable transmitQueue,
   udword theSendLength; // the number of byte to send in a single segment.
 
+  udword myWindowSize;
+
 
 };
 

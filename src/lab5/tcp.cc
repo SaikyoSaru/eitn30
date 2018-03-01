@@ -124,7 +124,6 @@ TCP::acceptConnection(uword portNo){ // TODO
 void
 TCP::connectionEstablished(TCPConnection *theConnection)
 {
-  cout << "we created a connection" << endl;
   if (theConnection->serverPortNumber() == 7)
   {
     TCPSocket* aSocket = new TCPSocket(theConnection);
@@ -263,17 +262,12 @@ TCPState::Synchronize(TCPConnection* theConnection,
 void
 TCPState::NetClose(TCPConnection* theConnection)
 {
-  cout << "Netclose" << endl;
-//  EstablishedState::instance()->NetClose(theConnection);
 }
 // Handle an incoming FIN segment
 void
 TCPState::AppClose(TCPConnection* theConnection)
 {
-//  cout << "tcpstate appclose" << endl;
-//  CloseWaitState::instance()->AppClose(theConnection);
 }
-// Handle close from application
 void
 TCPState::Kill(TCPConnection* theConnection)
 {
@@ -287,19 +281,12 @@ TCPState::Receive(TCPConnection* theConnection,
                      byte*  theData,
                      udword theLength)
 {
-  // EstablishedState::instance()->Receive(theConnection,
-  //              theSynchronizationNumber,
-  //              theData,
-  //              theLength);
 }
 // Handle incoming data
 void
 TCPState::Acknowledge(TCPConnection* theConnection,
                          udword theAcknowledgementNumber)
 {
-//  cout << "dumb dumb dumb" << endl;
-
-  //EstablishedState::instance()->Acknowledge(theConnection, theAcknowledgementNumber);
 }
 // Handle incoming Acknowledgement
 void
@@ -307,7 +294,6 @@ TCPState::Send(TCPConnection* theConnection,
                   byte*  theData,
                   udword theLength)
 {
-  //EstablishedState::instance()->Send(theConnection, theData, theLength);
 }
 
 
@@ -332,7 +318,6 @@ ListenState::Synchronize(TCPConnection* theConnection,
    case 7:
     // trace << "got SYN on ECHO port" << endl;
      theConnection->receiveNext = theSynchronizationNumber + 1; // look below
-     //cout << "their sync num" << (udword) theSynchronizationNumber +1 << endl;
      // acknumber , we ack on their sequenceNumber -> acknowledgementNumber = receiveNext
      theConnection->receiveWindow = 8*1024;
      theConnection->sendNext = get_time();
@@ -376,16 +361,11 @@ SynRecvdState::Acknowledge(TCPConnection* theConnection,
   {
    case 7:
      //trace << "got ACK on ECHO port" << endl;
-     //cout << "syncrec ack num: " << (udword) theAcknowledgementNumber << endl;
-     //theConnection->receiveNext = theAcknowledgementNumber; wip
      // Next reply to be sent.
-     theConnection->sentUnAcked = theAcknowledgementNumber; //wip update the acknumber
-     //theConnection->sentUnAcked = theConnection->sendNext; // prob unnecessary wip
-     // Send a segment with the ACK flag set.
-     // Prepare for the next send operation.
+     theConnection->sentUnAcked = theAcknowledgementNumber; //update the acknumber
      // Change state....
-     TCP::instance().connectionEstablished(theConnection); // added lab5
-     theConnection->myState = EstablishedState::instance(); //SynRecvdState::instance();
+     TCP::instance().connectionEstablished(theConnection); //ok connection
+     theConnection->myState = EstablishedState::instance();
      break;
    default:
      trace << "send RST..." << endl;
@@ -462,7 +442,6 @@ EstablishedState::Receive(TCPConnection* theConnection,
   // Delayed ACK is not implemented, simply acknowledge the data
   // by sending an ACK segment, then echo the data using Send.
   //theConnection->receiveNext = theSynchronizationNumber + (theLength - 20);
-  cout << ax_coreleft_total() << "before rec" << endl;
   theConnection->receiveNext = theSynchronizationNumber + theLength; // WIP
   theConnection->myTCPSender->sendFlags(0x10);
   theConnection->mySocket->socketDataReceived(theData, theLength);
@@ -477,18 +456,14 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
     switch (theConnection->myPort)
     {
      case 7:
-     //cout << "estab ack" << endl;
        // Next reply to be sent.
        // Send a segment with the ACK flag set.
        // Prepare for the next send operation.
-       //cout << "sqn: " << theConnection->sendNext << " ackn: " << theConnection->receiveNext << endl;
-       //theConnection->sendNext = theAcknowledgementNumber; no es updato el numero
        // Change state
-       theConnection->sentUnAcked = theAcknowledgementNumber; //wip
-       if (theConnection->queueLength - theConnection->theOffset > 0) {
-         cout << "lololo" << endl;
-         theConnection->myTCPSender->sendFromQueue();
-       }
+       theConnection->sentUnAcked = theAcknowledgementNumber;
+       //if (theConnection->queueLength - theConnection->theOffset > 0) { wip: moved to sendfrom queue
+       theConnection->myTCPSender->sendFromQueue();
+       //}
 
 
 
@@ -511,9 +486,7 @@ EstablishedState::Send(TCPConnection* theConnection,
           byte*  theData,
           udword theLength)
 {
-  //cout << "data sent before" << endl;
   //initialize the sending queue
-  cout << "right before send" << ax_coreleft_total() << endl;
   theConnection->transmitQueue = theData;
   theConnection->queueLength = theLength;
   theConnection->firstSeq = theConnection->sendNext;
@@ -521,10 +494,6 @@ EstablishedState::Send(TCPConnection* theConnection,
   theConnection->theOffset = 0;
   theConnection->theSendLength = 0;
   theConnection->myTCPSender->sendFromQueue();
-  // theConnection->myTCPSender->sendData(theData, theLength);
-  // theConnection->sendNext += theLength;
-  //
-  // //cout << "data sent after" << endl;
   //all data sent -> notify and release sem
   theConnection->mySocket->socketDataSent();
 }
@@ -546,12 +515,9 @@ CloseWaitState::instance()
 
 void
 CloseWaitState::AppClose(TCPConnection* theConnection) {
-//  cout << "right place CloseWaitState" << endl;
   theConnection->myState = LastAckState::instance();
-  //theConnection->receiveNext += 1; wip double increment
   theConnection->myState->Acknowledge(theConnection, theConnection->receiveNext);
-//  theConnection->myState = TCPState::instance();
-  theConnection->Kill(); // prob wrong?? first get to LastAckState??
+  theConnection->Kill(); // prob not wrong?? first get to LastAckState??
 }
 // Handle close from application
 
@@ -574,11 +540,8 @@ LastAckState::Acknowledge(TCPConnection* theConnection,
     switch (theConnection->myPort)
     {
      case 7:
-  //  cout << "ack num: " << (udword) theAcknowledgementNumber<< endl;
-       // Next reply to be sent.
-       // Send a segment with the ACK flag set.
+        // Send a segment with the ACK flag set.
        // Prepare for the next send operation.
-       //theConnection->receiveNext = theAcknowledgementNumber; wip
        theConnection->receiveNext += 1;
        theConnection->sentUnAcked = theAcknowledgementNumber;
        theConnection->myTCPSender->sendFlags(0x10);
@@ -602,13 +565,11 @@ LastAckState::Acknowledge(TCPConnection* theConnection,
 FinWait1State*
 FinWait1State::instance(){
   static FinWait1State myInstance;
-  //cout << "finwait1" << endl;
   return &myInstance;
 }
 
 void
 FinWait1State::Acknowledge(TCPConnection* theConnection, udword acknowledgementNumber){
-  //cout << "ack finwait1" << endl;
   theConnection->myState = FinWait2State::instance();
 }
 
@@ -739,23 +700,17 @@ TCPSender::sendData(byte*  theData, udword theLength) {
 void
 TCPSender::sendFromQueue(){
 
+  udword theWindowSize = myConnection->myWindowSize -
+      (myConnection->sendNext - myConnection->sentUnAcked);
+  // if the segment is over 1460 bytes
 
-
-  if(myConnection->queueLength - myConnection->theOffset > TCP::maxSegmentLength) {
-    cout << "send packet" << endl;
-    myConnection->theSendLength = TCP::maxSegmentLength;
+  while (myConnection->queueLength - myConnection->theOffset > 0 && theWindowSize > 0) {
+    udword send_l = MIN(theWindowSize, myConnection->queueLength - myConnection->theOffset);
+    send_l = MIN(send_l, TCP::maxSegmentLength);
+    myConnection->theSendLength = send_l;
     sendData(myConnection->theFirst, myConnection->theSendLength);
-    myConnection->sendNext += TCP::maxSegmentLength;
+    myConnection->sendNext += send_l;
     myConnection->theOffset += myConnection->theSendLength;
-    //myConnection->queueLength -= TCP::maxSegmentLength;
-    //myConnection->transmitQueue += TCP::maxSegmentLength;
-  } else {
-    cout << "right before the send:" << ax_coreleft_total() << endl;
-    myConnection->theSendLength = myConnection->queueLength - myConnection->theOffset;
-    sendData(myConnection->theFirst, myConnection->theSendLength);
-    myConnection->sendNext += myConnection->queueLength - myConnection->theOffset;
-    myConnection->theOffset += myConnection->theSendLength;
-    //myConnection->queueLength = 0;
 
   }
 
@@ -801,7 +756,6 @@ TCPInPacket::decode()
                                           mySourcePort,
                                           myDestinationPort,
                                           this);
-    //cout << "Core after shit is created" << ax_coreleft_total() << endl;
 
     if ((aTCPHeader->flags & 0x02) != 0)
     {
@@ -818,6 +772,7 @@ TCPInPacket::decode()
   }
   else
   {
+    aConnection->myWindowSize = HILO(aTCPHeader->windowSize); //maybe also add when creating connection
     // Connection was established. Handle all states.
     if ((aTCPHeader->flags & 0x10 ) != 0) {
     // Received a ACK flag

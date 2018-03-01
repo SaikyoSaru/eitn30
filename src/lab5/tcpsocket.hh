@@ -15,7 +15,6 @@
 #include "job.hh"
 #include "threads.hh"
 
-
 /****************** CLASS DEFINITION SECTION ********************************/
 
 /*****************************************************************************
@@ -116,7 +115,7 @@ class SimpleApplication : public Job
   // established.
   void generateData(byte* data, udword len);
  private:
-  TCPSocket* mySocket;
+   TCPSocket* mySocket;
 
   // Pointer to the application associated with this job.
 };
