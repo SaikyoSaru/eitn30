@@ -146,6 +146,7 @@ TCPConnection::TCPConnection(IPAddress& theSourceAddress,
 {
   trace << "TCP connection created" << endl;
   myTCPSender = new TCPSender(this, theCreator),
+  timer = new retransmitTimer(this, Clock::seconds * 1), // new, in seconds or millis?
   myState = ListenState::instance();
 }
 
@@ -155,6 +156,7 @@ TCPConnection::~TCPConnection()
 {
   trace << "TCP connection destroyed" << endl;
   delete myTCPSender;
+  delete timer; //new
   //delete myState; // fixed the continous spam of delete chain
   //delete mySocket;  //wip testing
 }
@@ -462,7 +464,7 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
        // Change state
        theConnection->sentUnAcked = theAcknowledgementNumber;
        //if (theConnection->queueLength - theConnection->theOffset > 0) { wip: moved to sendfrom queue
-       theConnection->myTCPSender->sendFromQueue();
+       theConnection->myTCPSender->sendFromQueue();// remove?? we already run a while loop^^
        //}
 
 
@@ -655,7 +657,7 @@ void
 TCPSender::sendData(byte*  theData, udword theLength) {
   //cout << "sent data" << endl;
   // Calculate the pseudo header checksum
-
+  myConnection->retransmitTimer->start();
   udword totalSegmentLength = 20 + theLength;
   byte* anAnswer = new byte[totalSegmentLength];
 
@@ -700,20 +702,54 @@ TCPSender::sendData(byte*  theData, udword theLength) {
 void
 TCPSender::sendFromQueue(){
 
-  udword theWindowSize = myConnection->myWindowSize -
-      (myConnection->sendNext - myConnection->sentUnAcked);
-  // if the segment is over 1460 bytes
-
-  while (myConnection->queueLength - myConnection->theOffset > 0 && theWindowSize > 0) {
-    udword send_l = MIN(theWindowSize, myConnection->queueLength - myConnection->theOffset);
-    send_l = MIN(send_l, TCP::maxSegmentLength);
-    myConnection->theSendLength = send_l;
+  if(myConnection->sentMaxSeq > myConnection->sendNext){
+    //retrsansmission
     sendData(myConnection->theFirst, myConnection->theSendLength);
-    myConnection->sendNext += send_l;
-    myConnection->theOffset += myConnection->theSendLength;
+  } else {
+    //not retransmission
+    udword theWindowSize = myConnection->myWindowSize -
+        (myConnection->sendNext - myConnection->sentUnAcked);
+    // if the segment is over 1460 bytes
 
+    while (myConnection->queueLength - myConnection->theOffset > 0 && theWindowSize > 0) {
+      udword send_l = MIN(theWindowSize, myConnection->queueLength - myConnection->theOffset);
+      send_l = MIN(send_l, TCP::maxSegmentLength);
+      myConnection->theSendLength = send_l;
+      sendData(myConnection->theFirst, myConnection->theSendLength);
+      myConnection->sentMaxSeq = myConnection->sendNext; //new
+      myConnection->sendNext += send_l;
+      myConnection->theOffset += myConnection->theSendLength;
+
+    }
   }
 
+}
+
+//----------------------------------------------------------------------------
+//
+
+retransmitTimer::retransmitTimer(TCPConnection* theConnection,
+               Duration retransmitTime):
+  myConnection(theConnection),
+  myRetransmitTime(retransmitTime)
+{
+}
+
+void
+retransmitTimer::start(){
+  this->timeOutAfter(myRetransmitTime);
+}
+
+void
+retransmitTimer::cancel(){
+  this->resetTimeOut();
+}
+
+void
+retransmitTimer::timeOut(){
+// ...->sendNext = ...->sentUnAcked; ..->sendFromQueue();
+  myConnection->sendNext = myConnection->sentUnAcked;
+  myConnection->sendFromQueue();
 }
 
 //----------------------------------------------------------------------------
@@ -839,6 +875,5 @@ TCPPseudoHeader::checksum()
 {
   return calculateChecksum((byte*)this, 12);
 }
-
 
 /****************** END OF FILE tcp.cc *************************************/

@@ -153,6 +153,8 @@ class TCPConnection
 
   udword myWindowSize;
 
+  udword sentMaxSeq;
+  retransmitTimer* timer;
 
 };
 
@@ -362,6 +364,8 @@ class FinWait1State : public TCPState
   FinWait1State() {}
 };
 
+//-----------------------------------------------------------------------------
+//
 class FinWait2State : public TCPState
 {
  public:
@@ -375,6 +379,8 @@ class FinWait2State : public TCPState
 };
 
 
+//-----------------------------------------------------------------------------
+//
 class TCPSender
 {
  public:
@@ -394,6 +400,27 @@ class TCPSender
   TCPConnection* myConnection;
   InPacket*      myAnswerChain;
 };
+
+
+//-----------------------------------------------------------------------------
+//
+class retransmitTimer : public Timed
+{
+ public:
+   retransmitTimer(TCPConnection* theConnection,
+                   Duration retransmitTime);
+   void start();
+   // this->timeOutAfter(myRetransmitTime);
+   void cancel();
+   // this->resetTimeOut();
+ private:
+   void timeOut();
+   // ...->sendNext = ...->sentUnAcked; ..->sendFromQueue();
+   TCPConnection* myConnection;
+   Duration myRetransmitTime;
+   // one second
+};
+
 
 /*****************************************************************************
 *%
