@@ -123,7 +123,7 @@ class Ethernet
   // Initiate the rx and tx buffers
   void initEtrax();
   // Initiate the Etrax chip
-
+  static udword disturbedCnt;
   EthernetAddress* myEthernetAddress;
   // The ethernet address of this server
 

@@ -216,6 +216,7 @@ TCPConnection::Receive(udword theSynchronizationNumber,
 
 void
 TCPConnection::Acknowledge(udword theAcknowledgementNumber){
+
   myState->Acknowledge(this, theAcknowledgementNumber);
 
 }
@@ -365,6 +366,7 @@ SynRecvdState::Acknowledge(TCPConnection* theConnection,
      //trace << "got ACK on ECHO port" << endl;
      // Next reply to be sent.
      theConnection->sentUnAcked = theAcknowledgementNumber; //update the acknumber
+     theConnection->sentMaxSeq = theAcknowledgementNumber; //wip, dont know where else
      // Change state....
      TCP::instance().connectionEstablished(theConnection); //ok connection
      theConnection->myState = EstablishedState::instance();
@@ -462,12 +464,16 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
        // Send a segment with the ACK flag set.
        // Prepare for the next send operation.
        // Change state
-       theConnection->sentUnAcked = theAcknowledgementNumber;
-       //if (theConnection->queueLength - theConnection->theOffset > 0) { wip: moved to sendfrom queue
-       theConnection->myTCPSender->sendFromQueue();// remove?? we already run a while loop^^
-       //}
-
-
+      //   if (theConnection->sentUnAcked == theAcknowledgementNumber) {
+      //     theConnection->timer->retransmit = true;
+      //   }
+        if (theConnection->sentUnAcked < theAcknowledgementNumber) {
+         theConnection->sentUnAcked = theAcknowledgementNumber;
+       }
+       if(theConnection->sendNext == theAcknowledgementNumber) {
+         theConnection->timer->cancel();
+       }
+       theConnection->myTCPSender->sendFromQueue();
 
        break;
      default:
@@ -605,6 +611,7 @@ TCPSender::TCPSender(TCPConnection* theConnection,
                      InPacket*      theCreator):
         myConnection(theConnection),
         myAnswerChain(theCreator->copyAnswerChain()) // Copies InPacket chain!
+        //disturbedCnt(25)
 {
 }
 
@@ -657,7 +664,7 @@ void
 TCPSender::sendData(byte*  theData, udword theLength) {
   //cout << "sent data" << endl;
   // Calculate the pseudo header checksum
-  myConnection->retransmitTimer->start();
+  myConnection->timer->start();
   udword totalSegmentLength = 20 + theLength;
   byte* anAnswer = new byte[totalSegmentLength];
 
@@ -688,11 +695,14 @@ TCPSender::sendData(byte*  theData, udword theLength) {
                                            pseudosum);
 
 
+
   myAnswerChain->answer(anAnswer, //(byte*)aTCPHeader
                         totalSegmentLength);
 
   delete anAnswer;
-  // Deallocate the dynamic memory
+    // Deallocate the dynamic memory
+    //cout << "rekt, " << myConnection->sendNext << " counter: "<< disturbedCnt << endl;
+
 }
 
 
@@ -701,10 +711,15 @@ TCPSender::sendData(byte*  theData, udword theLength) {
 
 void
 TCPSender::sendFromQueue(){
-
-  if(myConnection->sentMaxSeq > myConnection->sendNext){
+  cout << (udword) myConnection->sentMaxSeq << " " << (udword) myConnection->sendNext << endl;
+  if (myConnection->sentMaxSeq > myConnection->sendNext || myConnection->timer->retransmit){
     //retrsansmission
-    sendData(myConnection->theFirst, myConnection->theSendLength);
+    udword send_l = MIN(TCP::maxSegmentLength, myConnection->queueLength -
+      (myConnection->sentUnAcked - myConnection->firstSeq));
+    cout << "r" << endl;
+    sendData(myConnection->theFirst + (myConnection->sentUnAcked - myConnection->firstSeq), send_l); //the one thats missing
+    myConnection->sendNext = myConnection->sentMaxSeq; //wip prob ok
+    myConnection->timer->retransmit = false;
   } else {
     //not retransmission
     udword theWindowSize = myConnection->myWindowSize -
@@ -712,10 +727,13 @@ TCPSender::sendFromQueue(){
     // if the segment is over 1460 bytes
 
     while (myConnection->queueLength - myConnection->theOffset > 0 && theWindowSize > 0) {
+      cout << "sendFromQueue" << endl;
+
       udword send_l = MIN(theWindowSize, myConnection->queueLength - myConnection->theOffset);
       send_l = MIN(send_l, TCP::maxSegmentLength);
       myConnection->theSendLength = send_l;
-      sendData(myConnection->theFirst, myConnection->theSendLength);
+      sendData(myConnection->theFirst + myConnection->theOffset, myConnection->theSendLength);
+      //cout << "data sent or not" << "send l" << send_l << endl;
       myConnection->sentMaxSeq = myConnection->sendNext; //new
       myConnection->sendNext += send_l;
       myConnection->theOffset += myConnection->theSendLength;
@@ -747,9 +765,10 @@ retransmitTimer::cancel(){
 
 void
 retransmitTimer::timeOut(){
-// ...->sendNext = ...->sentUnAcked; ..->sendFromQueue();
+  cout << "timeout" << endl;
   myConnection->sendNext = myConnection->sentUnAcked;
-  myConnection->sendFromQueue();
+  myConnection->myTCPSender->sendFromQueue();
+  retransmit = true;
 }
 
 //----------------------------------------------------------------------------
@@ -824,7 +843,7 @@ TCPInPacket::decode()
                             myData + headerOffset(),
                             myLength - headerOffset());
       } else { // check for ack
-        aConnection->Acknowledge(mySequenceNumber);
+        aConnection->Acknowledge(myAcknowledgementNumber);
       }
     }
   }

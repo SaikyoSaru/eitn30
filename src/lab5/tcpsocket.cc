@@ -162,14 +162,17 @@ SimpleApplication::generateData(byte* data, udword len) {
     // for(udword i=0; i<len; i+=40){
     //   memcpy(data[i], mats, 40);
     //  }
+    byte c = 'A' - 1;
     for (udword i=0; i<len; i++) {
-      data[i] = 'b';
-      if(i%5 == 0){
-        data[i] = 'n';
-        if (i%1000 == 0) {
-          data[i] = 'i';
+
+      if((i%1460) == 0){
+        if(c == 'Z'){
+          c = 'A';
+        } else {
+          c++;
         }
       }
+      data[i] = c;
     }
 
 }

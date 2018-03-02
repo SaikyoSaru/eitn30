@@ -37,7 +37,7 @@ extern "C"
 
 static bool processingPacket    = FALSE;    /* TRUE when LLC has a packet */
 static bool bufferFullCondition = FALSE;    /* TRUE when buffer is full   */
-
+udword Ethernet::disturbedCnt = 20;
 /****************** Ethernet DEFINITION SECTION *************************/
 
 //----------------------------------------------------------------------------
@@ -49,6 +49,7 @@ Ethernet::Ethernet()
   nextTxPage = 0;
   processingPacket = FALSE;
   // STUFF: Set myEthernetAddress to your "personnummer" here!
+
 
   myEthernetAddress = new EthernetAddress(0x00,0x95,0x07,0x23,0x02,0x19);
   this->initMemory();
@@ -395,6 +396,7 @@ Job::schedule(eJob);
 void
 Ethernet::transmittPacket(byte *theData, udword theLength)
 {
+  if (++disturbedCnt%25) {
 
   // Make sure the packet fits in the transmitt buffer.
 
@@ -485,14 +487,7 @@ Ethernet::transmittPacket(byte *theData, udword theLength)
   /* Now we can tell Etrax to send this packet. Unless it is already      */
   /* busy sending packets. In which case it will send this automatically  */
 
-  // STUFF: Advance nextTxPage here!
-  //byte* pM = (byte*) thePage;
-  //udword tmp = (udword)aPage;
-  //ax_printf("%8.8X", tmp);
-/*  for (int i=0;i<60;i++)
-    ax_printf(" %2.2X",pM[i]);
-  ax_printf("\r\n");
-*/
+
   nextTxPage = (nextTxPage + nOfBufferPagesNeeded) % txBufferPages;
 
   // Tell Etrax there isn't a packet at nextTxPage.
@@ -506,6 +501,7 @@ Ethernet::transmittPacket(byte *theData, udword theLength)
 
   *(volatile byte*)R_TR_CMD = 0x12;
 
+}
 }
 
 //----------------------------------------------------------------------------

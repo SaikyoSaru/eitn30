@@ -80,6 +80,7 @@ class TCP
 *%***************************************************************************/
 class TCPState;
 class TCPSender;
+class retransmitTimer;
 class TCPConnection
 {
  public:
@@ -413,6 +414,7 @@ class retransmitTimer : public Timed
    // this->timeOutAfter(myRetransmitTime);
    void cancel();
    // this->resetTimeOut();
+   bool retransmit;
  private:
    void timeOut();
    // ...->sendNext = ...->sentUnAcked; ..->sendFromQueue();
