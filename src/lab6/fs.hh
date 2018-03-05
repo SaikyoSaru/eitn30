@@ -1,9 +1,9 @@
 /*!***************************************************************************
 *!
 *! FILE NAME  : fs.hh
-*! 
+*!
 *! DESCRIPTION: simple filesystem
-*! 
+*!
 *!***************************************************************************/
 
 #ifndef fs_hh
@@ -30,6 +30,7 @@
 class FileSystem
 {
  public:
+  FileSystem();
   static FileSystem& instance();
 
   bool writeFile(char *path,char *name,byte *theData,udword theLength);
@@ -45,16 +46,3 @@ class FileSystem
 #endif
 
 /****************** END OF FILE fs.hh *************************************/
-
-
-
-
-
-
-
-
-
-
-
-
-

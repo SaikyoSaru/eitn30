@@ -158,7 +158,7 @@ TCPConnection::~TCPConnection()
   delete myTCPSender;
   delete timer; //new
   //delete myState; // fixed the continous spam of delete chain
-  //delete mySocket;  //wip testing
+  delete mySocket;  //wip testing
 }
 
 //----------------------------------------------------------------------------
@@ -406,7 +406,7 @@ EstablishedState::NetClose(TCPConnection* theConnection)
   // Update connection variables and send an ACK
 
   // Go to NetClose wait state, inform application
-
+  cout << "estab netclose" << endl;
   theConnection->myState = CloseWaitState::instance();
   theConnection->mySocket->socketEof();
 
@@ -424,7 +424,7 @@ EstablishedState::AppClose(TCPConnection* theConnection ) {
 
 //  theConnection->sentUnAcked = theConnection->sendNext;
   //cout << "app close" << endl;
-
+  cout << "estab appclose" << endl;
   theConnection->myState = FinWait1State::instance();
   theConnection->myTCPSender->sendFlags(0x11); //fin/ack maybe only ack
   //theConnection->sendNext += 1; // new
@@ -531,6 +531,7 @@ CloseWaitState::instance()
 
 void
 CloseWaitState::AppClose(TCPConnection* theConnection) {
+  cout << "close wait" << endl;
   theConnection->myState = LastAckState::instance();
   theConnection->myState->Acknowledge(theConnection, theConnection->receiveNext);
   theConnection->Kill(); // prob not wrong?? first get to LastAckState??
@@ -586,7 +587,17 @@ FinWait1State::instance(){
 
 void
 FinWait1State::Acknowledge(TCPConnection* theConnection, udword acknowledgementNumber){
+  cout << "FinWait1State ack" << endl;
   theConnection->myState = FinWait2State::instance();
+}
+void
+FinWait1State::NetClose(TCPConnection* theConnection) {
+  cout << "FinWait1State netclose" << endl;
+  theConnection->receiveNext += 1;
+  theConnection->sendNext += 1;
+  theConnection->myTCPSender->sendFlags(0x10);
+  theConnection->Kill();
+  /* code */
 }
 
 //----------------------------------------------------------------------------
