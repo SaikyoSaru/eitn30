@@ -81,6 +81,7 @@ class TCPSocket
 
   byte*           myReadData;
   udword          myReadLength;
+  
   // Holds received data beetwen the time that socketDataReceived is called
   // and the Read operation wakes up and passses the data to the application.
 

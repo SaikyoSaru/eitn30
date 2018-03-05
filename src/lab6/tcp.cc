@@ -22,6 +22,7 @@ extern "C"
 #include "tcp.hh"
 #include "ip.hh"
 #include "tcpsocket.hh"
+#include "http.hh"
 
 
 #define D_TCP
@@ -110,8 +111,8 @@ TCP::deleteConnection(TCPConnection* theConnection)
 //----------------------------------------------------------------------------
 //
 bool
-TCP::acceptConnection(uword portNo){ // TODO
-  if(portNo == 7){
+TCP::acceptConnection(uword portNo) {
+  if (portNo == 7 || portNo == 80) {
     return true;
   }
   return false;
@@ -124,13 +125,18 @@ TCP::acceptConnection(uword portNo){ // TODO
 void
 TCP::connectionEstablished(TCPConnection *theConnection)
 {
-  if (theConnection->serverPortNumber() == 7)
+  if (theConnection->serverPortNumber() == 7 || theConnection->serverPortNumber() == 80)
   {
     TCPSocket* aSocket = new TCPSocket(theConnection);
     // Create a new TCPSocket.
     theConnection->registerSocket(aSocket);
     // Register the socket in the TCPConnection.
-    Job::schedule(new SimpleApplication(aSocket)); //delete this job?
+    if (theConnection->serverPortNumber() == 7) {
+      Job::schedule(new SimpleApplication(aSocket)); //delete this job?
+    } else {
+      Job::schedule(new HTTPServer(aSocket)); //delete this job?
+
+    }
     // Create and start an application for the connection.
   }
 }
@@ -316,31 +322,21 @@ void
 ListenState::Synchronize(TCPConnection* theConnection,
                          udword theSynchronizationNumber)
 {
-  switch (theConnection->myPort)
-  {
-   case 7:
-    // trace << "got SYN on ECHO port" << endl;
-     theConnection->receiveNext = theSynchronizationNumber + 1; // look below
-     // acknumber , we ack on their sequenceNumber -> acknowledgementNumber = receiveNext
-     theConnection->receiveWindow = 8*1024;
-     theConnection->sendNext = get_time();
-     // Next reply to be sent.
-     theConnection->sentUnAcked = theConnection->sendNext;
-     // Send a segment with the SYN and ACK flags set.
-     theConnection->myTCPSender->sendFlags(0x12);
-     // Prepare for the next send operation.
-     theConnection->sendNext += 1;
-     // Change state
-     theConnection->myState = SynRecvdState::instance();
-     break;
-   default:
-     trace << "send RST..." << endl;
-     theConnection->sendNext = 0;
-     // Send a segment with the RST flag set.
-     theConnection->myTCPSender->sendFlags(0x04);
-     TCP::instance().deleteConnection(theConnection);
-     break;
-  }
+
+  // trace << "got SYN on ECHO port" << endl;
+   theConnection->receiveNext = theSynchronizationNumber + 1; // look below
+   // acknumber , we ack on their sequenceNumber -> acknowledgementNumber = receiveNext
+   theConnection->receiveWindow = 8*1024;
+   theConnection->sendNext = get_time();
+   // Next reply to be sent.
+   theConnection->sentUnAcked = theConnection->sendNext;
+   // Send a segment with the SYN and ACK flags set.
+   theConnection->myTCPSender->sendFlags(0x12);
+   // Prepare for the next send operation.
+   theConnection->sendNext += 1;
+   // Change state
+   theConnection->myState = SynRecvdState::instance();
+
 }
 
 
@@ -360,25 +356,13 @@ SynRecvdState::instance()
 void
 SynRecvdState::Acknowledge(TCPConnection* theConnection,
                  udword theAcknowledgementNumber){
-  switch (theConnection->myPort)
-  {
-   case 7:
-     //trace << "got ACK on ECHO port" << endl;
-     // Next reply to be sent.
-     theConnection->sentUnAcked = theAcknowledgementNumber; //update the acknumber
-     theConnection->sentMaxSeq = theAcknowledgementNumber; //wip, dont know where else
-     // Change state....
-     TCP::instance().connectionEstablished(theConnection); //ok connection
-     theConnection->myState = EstablishedState::instance();
-     break;
-   default:
-     trace << "send RST..." << endl;
-     theConnection->sendNext = 0;
-     // Send a segment with the RST flag set.
-     theConnection->myTCPSender->sendFlags(0x04);
-     TCP::instance().deleteConnection(theConnection);
-     break;
-  }
+   //trace << "got ACK on ECHO port" << endl;
+   // Next reply to be sent.
+   theConnection->sentUnAcked = theAcknowledgementNumber; //update the acknumber
+   theConnection->sentMaxSeq = theAcknowledgementNumber; //wip, dont know where else
+   // Change state....
+   TCP::instance().connectionEstablished(theConnection); //ok connection
+   theConnection->myState = EstablishedState::instance();
 
 }
 
@@ -406,7 +390,7 @@ EstablishedState::NetClose(TCPConnection* theConnection)
   // Update connection variables and send an ACK
 
   // Go to NetClose wait state, inform application
-  cout << "estab netclose" << endl;
+  //cout << "estab netclose" << endl;
   theConnection->myState = CloseWaitState::instance();
   theConnection->mySocket->socketEof();
 
@@ -424,7 +408,7 @@ EstablishedState::AppClose(TCPConnection* theConnection ) {
 
 //  theConnection->sentUnAcked = theConnection->sendNext;
   //cout << "app close" << endl;
-  cout << "estab appclose" << endl;
+  //cout << "estab appclose" << endl;
   theConnection->myState = FinWait1State::instance();
   theConnection->myTCPSender->sendFlags(0x11); //fin/ack maybe only ack
   //theConnection->sendNext += 1; // new
@@ -457,9 +441,7 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
                  udword theAcknowledgementNumber)
 {
 
-    switch (theConnection->myPort)
-    {
-     case 7:
+
        // Next reply to be sent.
        // Send a segment with the ACK flag set.
        // Prepare for the next send operation.
@@ -467,31 +449,20 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
       //   if (theConnection->sentUnAcked == theAcknowledgementNumber) {
       //     theConnection->timer->retransmit = true;
       //   }
-        if (theConnection->sentUnAcked < theAcknowledgementNumber) {
-         theConnection->sentUnAcked = theAcknowledgementNumber;
-       }
-      //  cout << "sendNext: "<< theConnection->sendNext << " ack: " << theAcknowledgementNumber <<
-      //  " sentmax:" << theConnection->sentMaxSeq << endl;
-       if(theConnection->sendNext == theAcknowledgementNumber) {
-         //cout << "cancel1" << endl;
-         theConnection->timer->cancel();
-       }
-       if (theConnection->sendNext < theAcknowledgementNumber) { // && theConnection->sentMaxSeq != theConnection->sendNext
-           theConnection->sendNext = theAcknowledgementNumber;
-           theConnection->timer->cancel();
-       }
-       theConnection->myTCPSender->sendFromQueue();
-
-       break;
-     default:
-       trace << "send RST..." << endl;
-       theConnection->sendNext = 0;
-       // Send a segment with the RST flag set.
-       theConnection->myTCPSender->sendFlags(0x04);
-       TCP::instance().deleteConnection(theConnection);
-       break;
-    }
-
+    if (theConnection->sentUnAcked < theAcknowledgementNumber) {
+     theConnection->sentUnAcked = theAcknowledgementNumber;
+   }
+  //  cout << "sendNext: "<< theConnection->sendNext << " ack: " << theAcknowledgementNumber <<
+  //  " sentmax:" << theConnection->sentMaxSeq << endl;
+   if(theConnection->sendNext == theAcknowledgementNumber) {
+     //cout << "cancel1" << endl;
+     theConnection->timer->cancel();
+   }
+   if (theConnection->sendNext < theAcknowledgementNumber) { // && theConnection->sentMaxSeq != theConnection->sendNext
+       theConnection->sendNext = theAcknowledgementNumber;
+       theConnection->timer->cancel();
+   }
+   theConnection->myTCPSender->sendFromQueue();
 
 }
 // Handle incoming Acknowledgement
@@ -531,7 +502,7 @@ CloseWaitState::instance()
 
 void
 CloseWaitState::AppClose(TCPConnection* theConnection) {
-  cout << "close wait" << endl;
+  //cout << "close wait" << endl;
   theConnection->myState = LastAckState::instance();
   theConnection->myState->Acknowledge(theConnection, theConnection->receiveNext);
   theConnection->Kill(); // prob not wrong?? first get to LastAckState??
@@ -554,24 +525,13 @@ LastAckState::Acknowledge(TCPConnection* theConnection,
                  udword theAcknowledgementNumber)
 {
   //theConnection->Acknowledge(theAcknowledgementNumber);
-    switch (theConnection->myPort)
-    {
-     case 7:
-        // Send a segment with the ACK flag set.
-       // Prepare for the next send operation.
-       theConnection->receiveNext += 1;
-       theConnection->sentUnAcked = theAcknowledgementNumber;
-       theConnection->myTCPSender->sendFlags(0x10);
-       // Change state
-       break;
-     default:
-       trace << "send RST..." << endl;
-       theConnection->sendNext = 0;
-       // Send a segment with the RST flag set.
-       theConnection->myTCPSender->sendFlags(0x04);
-       TCP::instance().deleteConnection(theConnection);
-       break;
-    }
+
+    // Send a segment with the ACK flag set.
+   // Prepare for the next send operation.
+   theConnection->receiveNext += 1;
+   theConnection->sentUnAcked = theAcknowledgementNumber;
+   theConnection->myTCPSender->sendFlags(0x10);
+   // Change state
 }
 
 //----------------------------------------------------------------------------
@@ -587,12 +547,12 @@ FinWait1State::instance(){
 
 void
 FinWait1State::Acknowledge(TCPConnection* theConnection, udword acknowledgementNumber){
-  cout << "FinWait1State ack" << endl;
+  // cout << "FinWait1State ack" << endl;
   theConnection->myState = FinWait2State::instance();
 }
 void
 FinWait1State::NetClose(TCPConnection* theConnection) {
-  cout << "FinWait1State netclose" << endl;
+  // cout << "FinWait1State netclose" << endl;
   theConnection->receiveNext += 1;
   theConnection->sendNext += 1;
   theConnection->myTCPSender->sendFlags(0x10);
@@ -613,7 +573,7 @@ FinWait2State::instance(){
 
 void
 FinWait2State::NetClose(TCPConnection* theConnection){
-  cout << "netclose FinWait2State" << endl;
+  // cout << "netclose FinWait2State" << endl;
   theConnection->receiveNext += 1;
   theConnection->sendNext += 1;
   theConnection->myTCPSender->sendFlags(0x10);
@@ -794,7 +754,7 @@ retransmitTimer::cancel(){
 
 void
 retransmitTimer::timeOut(){
-  cout << "timeout" << myConnection->sentUnAcked << endl;
+  // cout << "timeout" << myConnection->sentUnAcked << endl;
   retransmit = true;
   myConnection->sendNext = myConnection->sentUnAcked;
   myConnection->myTCPSender->sendFromQueue();

@@ -25,11 +25,17 @@ extern "C"
 #ifdef D_HTTP
 #define trace cout
 #else
-#define trace if(false) cout
+#define trace if(true) cout
 #endif
 
 /****************** HTTPServer DEFINITION SECTION ***************************/
 
+
+
+HTTPServer::HTTPServer(TCPSocket* theSocket) :
+  mySocket(theSocket)
+{
+}
 //----------------------------------------------------------------------------
 //
 // Allocates a new null terminated string containing a copy of the data at
@@ -89,7 +95,7 @@ HTTPServer::decodeBase64(char* theEncodedString)
 {
   static const char* someValidCharacters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-  
+
   int aCharsToDecode;
   int k = 0;
   char  aTmpStorage[4];
@@ -97,8 +103,8 @@ HTTPServer::decodeBase64(char* theEncodedString)
   char* aResult = new char[80];
 
   // Original code by JH, found on the net years later (!).
-  // Modify on your own risk. 
-  
+  // Modify on your own risk.
+
   for (unsigned int i = 0; i < strlen(theEncodedString); i += 4)
   {
     aValue = 0;
@@ -120,7 +126,7 @@ HTTPServer::decodeBase64(char* theEncodedString)
       aDecodedValue <<= ((3-j)*6);
       aValue += aDecodedValue;
     }
-    for (int jj = 2; jj >= 0; jj--) 
+    for (int jj = 2; jj >= 0; jj--)
     {
       aTmpStorage[jj] = aValue & 255;
       aValue >>= 8;
@@ -131,7 +137,7 @@ HTTPServer::decodeBase64(char* theEncodedString)
   }
   aResult[k] = 0; // zero terminate string
 
-  return aResult;  
+  return aResult;
 }
 
 //------------------------------------------------------------------------
@@ -143,11 +149,11 @@ HTTPServer::decodeForm(char* theEncodedForm)
 {
   char* anEncodedFile = strchr(theEncodedForm,'=');
   anEncodedFile++;
-  char* aForm = new char[strlen(anEncodedFile) * 2]; 
+  char* aForm = new char[strlen(anEncodedFile) * 2];
   // Serious overkill, but what the heck, we've got plenty of memory here!
   udword aSourceIndex = 0;
   udword aDestIndex = 0;
-  
+
   while (aSourceIndex < strlen(anEncodedFile))
   {
     char aChar = *(anEncodedFile + aSourceIndex++);
@@ -178,6 +184,81 @@ HTTPServer::decodeForm(char* theEncodedForm)
   }
   *(aForm + aDestIndex++) = '\0';
   return aForm;
+}
+//------------------------------------------------------------------------
+//
+//
+char*
+HTTPServer::findPathName(char* str)
+//Jossan hade flera liknande metoder här som de kallade i doit.
+{
+  char* firstPos = strchr(str, ' ');     // First space on line
+  firstPos++;                            // Pointer to first /
+  char* lastPos = strchr(firstPos, ' '); // Last space on line
+  char* thePath = 0;                     // Result path
+  if ((lastPos - firstPos) == 1)
+  {
+    // Is / only
+    thePath = 0;                         // Return NULL
+  }
+  else
+  {
+    // Is an absolute path. Skip first /.
+    thePath = extractString((char*)(firstPos+1),
+                            lastPos-firstPos);
+    if ((lastPos = strrchr(thePath, '/')) != 0)
+    {
+      // Found a path. Insert -1 as terminator.
+      *lastPos = '\xff';
+      *(lastPos+1) = '\0';
+      while ((firstPos = strchr(thePath, '/')) != 0)
+      {
+        // Insert -1 as separator.
+        *firstPos = '\xff';
+      }
+    }
+    else
+    {
+      // Is /index.html
+      delete thePath; thePath = 0; // Return NULL
+    }
+  }
+  return thePath;
+}
+
+//-----------------------------------------------------------------------------
+//
+
+//the job to schedule
+void HTTPServer::doit()
+{
+  char* stdget = "HTTP/1.0 200 OK\r\n Content-type: text/html\r\n \r\n <<html><head><title>File not found</title></head>
+<body><h1>404 Not found</h1></body></html>>";
+  cout << "this is a job" << endl;
+
+  udword aLength;
+  char* aData;
+
+  //cout << done << " and " << mySocket->isEof() << endl;
+
+  // while (!done && !mySocket->isEof())
+  // {
+    //cout << "Core in socket" << ax_coreleft_total() << endl;
+    aData = (char*)mySocket->Read(aLength);
+
+    if(strncmp(aData,"GET", 3) == 0){
+      cout << "get request" << endl;
+      mySocket->Write((byte*)stdget, (uint)strlen(stdget));
+    } else if(strncmp(aData,"POST", 4) == 0){
+      cout << "post request" << endl;
+    }
+
+    // char * tmp = extractString(aData, aLength);
+    // cout << tmp << endl;
+
+  // }
+  // mySocket->Close();
+
 }
 
 /************** END OF FILE http.cc *************************************/

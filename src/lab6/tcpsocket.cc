@@ -37,7 +37,7 @@ TCPSocket::~TCPSocket()
 {
   //delete myConnection;
   delete myReadData;
-  cout << "delete socket" << endl;
+  //cout << "delete socket" << endl;
   delete myReadSemaphore;
   delete myWriteSemaphore;
 }
@@ -80,7 +80,6 @@ void
 TCPSocket::Close()
 {
   //myConnection->myState->FinWait1State::instance();
-  cout << "app close" << endl;
   myConnection->AppClose();
   //delete this;
 }
@@ -110,7 +109,7 @@ TCPSocket::socketDataSent() //Copied
 void
 TCPSocket::socketEof() //Copied
 {
-  cout << "socketEof" << endl;
+
   eofFound = true;
   myReadSemaphore->signal();
 }
@@ -137,7 +136,6 @@ SimpleApplication::doit() //Copied
   {
     //cout << "Core in socket" << ax_coreleft_total() << endl;
     aData = mySocket->Read(aLength);
-    cout << "got past read: " << aLength << endl;
     if (aLength > 0)
     {
 
