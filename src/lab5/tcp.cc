@@ -76,7 +76,7 @@ TCP::getConnection(IPAddress& theSourceAddress,
   }
   else
   {
-    trace << "Found connection in queue" << endl;
+  //  trace << "Found connection in queue" << endl;
 
   }
   return aConnection;
@@ -470,8 +470,17 @@ EstablishedState::Acknowledge(TCPConnection* theConnection,
         if (theConnection->sentUnAcked < theAcknowledgementNumber) {
          theConnection->sentUnAcked = theAcknowledgementNumber;
        }
+      //  cout << "sendNext: "<< theConnection->sendNext << " ack: " << theAcknowledgementNumber <<
+      //  " sentmax:" << theConnection->sentMaxSeq << endl;
        if(theConnection->sendNext == theAcknowledgementNumber) {
+         //cout << "cancel1" << endl;
          theConnection->timer->cancel();
+       }
+       if (theConnection->sendNext < theAcknowledgementNumber) { // && theConnection->sentMaxSeq != theConnection->sendNext
+           theConnection->sendNext = theAcknowledgementNumber;
+           theConnection->timer->cancel();
+           //cout << "cancel2" << endl;
+
        }
        theConnection->myTCPSender->sendFromQueue();
 
@@ -503,7 +512,8 @@ EstablishedState::Send(TCPConnection* theConnection,
   theConnection->theSendLength = 0;
   theConnection->myTCPSender->sendFromQueue();
   //all data sent -> notify and release sem
-  theConnection->mySocket->socketDataSent();
+  theConnection->mySocket->socketDataSent(); //kolla på den sen?
+  //cout << "data sent: " << theConnection->sentUnAcked << endl;
 }
 // Send outgoing data
 
@@ -711,15 +721,22 @@ TCPSender::sendData(byte*  theData, udword theLength) {
 
 void
 TCPSender::sendFromQueue(){
-  cout << (udword) myConnection->sentMaxSeq << " " << (udword) myConnection->sendNext << endl;
+  //cout << (udword) myConnection->sentMaxSeq << " " << (udword) myConnection->sendNext << endl;
   if (myConnection->sentMaxSeq > myConnection->sendNext || myConnection->timer->retransmit){
+    //cout << "which trigger: " << myConnection->sentMaxSeq - myConnection->sendNext << endl;
+    //cout << "sent max seq: " << (udword)myConnection->sentMaxSeq << " sendNext" << (udword)myConnection->sendNext << endl;
+    // if(myConnection->timer->retransmit){
+    //   cout << "t retransmitt" << endl;
+    // }
+    myConnection->timer->retransmit = false;
+    myConnection->timer->cancel();
     //retrsansmission
     udword send_l = MIN(TCP::maxSegmentLength, myConnection->queueLength -
       (myConnection->sentUnAcked - myConnection->firstSeq));
-    cout << "r" << endl;
+    //cout << "r" << endl;
     sendData(myConnection->theFirst + (myConnection->sentUnAcked - myConnection->firstSeq), send_l); //the one thats missing
     myConnection->sendNext = myConnection->sentMaxSeq; //wip prob ok
-    myConnection->timer->retransmit = false;
+
   } else {
     //not retransmission
     udword theWindowSize = myConnection->myWindowSize -
@@ -727,7 +744,10 @@ TCPSender::sendFromQueue(){
     // if the segment is over 1460 bytes
 
     while (myConnection->queueLength - myConnection->theOffset > 0 && theWindowSize > 0) {
-      cout << "sendFromQueue" << endl;
+      // We dont handle the case where
+      // myConnection->myWindowSize - (myConnection->sendNext - myConnection->sentUnAcked) < 0
+      // => theWindowSize gets asigned max value of udword (since unsigned).
+    //  cout << "sendFromQueue" << endl;
 
       udword send_l = MIN(theWindowSize, myConnection->queueLength - myConnection->theOffset);
       send_l = MIN(send_l, TCP::maxSegmentLength);
@@ -765,10 +785,11 @@ retransmitTimer::cancel(){
 
 void
 retransmitTimer::timeOut(){
-  cout << "timeout" << endl;
+  cout << "timeout" << myConnection->sentUnAcked << endl;
+  retransmit = true;
   myConnection->sendNext = myConnection->sentUnAcked;
   myConnection->myTCPSender->sendFromQueue();
-  retransmit = true;
+
 }
 
 //----------------------------------------------------------------------------

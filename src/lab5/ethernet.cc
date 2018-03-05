@@ -396,7 +396,7 @@ Job::schedule(eJob);
 void
 Ethernet::transmittPacket(byte *theData, udword theLength)
 {
-  if (++disturbedCnt%25) {
+  //if (++disturbedCnt%25) {
 
   // Make sure the packet fits in the transmitt buffer.
 
@@ -501,7 +501,7 @@ Ethernet::transmittPacket(byte *theData, udword theLength)
 
   *(volatile byte*)R_TR_CMD = 0x12;
 
-}
+//}
 }
 
 //----------------------------------------------------------------------------
