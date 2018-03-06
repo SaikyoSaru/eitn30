@@ -72,7 +72,7 @@ TCP::getConnection(IPAddress& theSourceAddress,
   }
   if (!connectionFound)
   {
-    trace << "Connection not found!" << endl;
+  //  trace << "Connection not found!" << endl;
     aConnection = NULL;
   }
   else
@@ -150,7 +150,7 @@ TCPConnection::TCPConnection(IPAddress& theSourceAddress,
         hisPort(theSourcePort),
         myPort(theDestinationPort)
 {
-  trace << "TCP connection created" << endl;
+//  trace << "TCP connection created" << endl;
   myTCPSender = new TCPSender(this, theCreator),
   timer = new retransmitTimer(this, Clock::seconds * 1), // new, in seconds or millis?
   myState = ListenState::instance();
@@ -280,7 +280,7 @@ TCPState::AppClose(TCPConnection* theConnection)
 void
 TCPState::Kill(TCPConnection* theConnection)
 {
-  trace << "TCPState::Kill" << endl;
+//  trace << "TCPState::Kill" << endl;
   TCP::instance().deleteConnection(theConnection);
 }
 
@@ -824,6 +824,7 @@ TCPInPacket::decode()
 
       if(aTCPHeader->flags & 0x01) { //FIN
         //myState = CloseWaitState
+    //    cout << "got a fin" << endl;
         aConnection->NetClose();
 
       } else if ((aTCPHeader->flags & 0x08) != 0) {
@@ -832,6 +833,10 @@ TCPInPacket::decode()
           aConnection->Receive(mySequenceNumber,
                             myData + headerOffset(),
                             myLength - headerOffset());
+      } else if ((aTCPHeader->flags & 0x04) != 0) {
+        //in case of RST flag
+      //  cout << "rst flag in decode" << endl;
+        aConnection->Kill();
       } else { // check for ack
         aConnection->Acknowledge(myAcknowledgementNumber);
       }

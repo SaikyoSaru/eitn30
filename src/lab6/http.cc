@@ -35,13 +35,13 @@ extern "C"
 HTTPServer::HTTPServer(TCPSocket* theSocket) :
   mySocket(theSocket)
 {
-  fs = new FileSystem();
+  //fs = new FileSystem();
 }
 
 //----------------------------------------------------------------------------
 //
 HTTPServer::~HTTPServer(){
-  delete fs;
+  //delete fs;
 }
 
 
@@ -245,6 +245,8 @@ HTTPServer::findFileName(char* str)
   firstPos++;
   char* lastPos = strchr(firstPos, ' ');
   char* fileName = extractString(firstPos, (udword)(lastPos - firstPos));
+  fileName = strrchr(fileName, '/');
+  fileName++;
   //no filename found -> index page
   if (strlen(fileName) == 0) {
     fileName = "index.htm";
@@ -258,14 +260,7 @@ HTTPServer::findFileName(char* str)
 //the job to schedule
 void HTTPServer::doit()
 {
-  char* stdget = "HTTP/1.0 200 OK\r\n
-  Content-type: text/html\r\n
-  \r\n
-  <html><head><title>File not not found</title></head>
-  <body><h1>The body</h1></body></html>";
-  char* notF = "HTTP/1.0 404 Not found\r\n
-  Content-type: text/html\r\n
-  \r\n
+  char* notF = "HTTP/1.0 404 Not found\r\nContent-type: text/html\r\n\r\n
   <html><head><title>File not found</title></head>
   <body><h1>404 Not found</h1></body></html>";
   cout << "this is a job" << endl;
@@ -275,59 +270,64 @@ void HTTPServer::doit()
   udword aLength;
   char* aData;
   char* header;
-  bool done = false;
   char* path;
-  byte* answer;
   char* sendType;
   //cout << done << " and " << mySocket->isEof() << endl;
 
-   while (!done && !mySocket->isEof())
-   {
+  //  while (!done && !mySocket->isEof())
+  //  {
     //cout << "Core in socket" << ax_coreleft_total() << endl;
     aData = (char*)mySocket->Read(aLength);
     header = extractString(aData, aLength);
     path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
-    cout << "path: " << path <<" end path"<< endl;
+  //  cout << "path: " << path <<" end path"<< endl;
     if(strncmp(aData,"GET", 3) == 0){
       //cout << "get request" << endl;
       //cout << aData << endl;
       //mySocket->Write((byte*)stdget, (uint)strlen(stdget));
-      char* file = findFileName(aData);
-      cout << "filename: " << file << endl;
+      char* file = findFileName(header); //check this out
+    //  cout << "filename: " << file << endl;
       char* type = strchr(file, '.');
       type++;
 
         if ( strcmp(type,"gif") == 0){
-          cout << "gif" << endl;
-          sendType = "HTTP/1.0 200 OK\r\n
-          Content-type: image/gif\r\n
-          \r\n";
+    //      cout << "gif" << endl;
+          sendType = "HTTP/1.0 200 OK\r\nContent-type: image/gif\r\n\r\n";
+          // path = "pict";
+          // file = "small1.gif";
         } else if (strcmp(type, "jpg") == 0) {
-          cout << "jpg" << endl;
-          sendType = "HTTP/1.0 200 OK\r\n
-          Content-type: image/jpeg\r\n
-          \r\n";
+    //      cout << "jpg" << endl;
+          sendType = "HTTP/1.0 200 OK\r\nContent-type: image/jpeg\r\n\r\n";
         } else {
-          cout << "htm" << endl;
-          sendType = "HTTP/1.0 200 OK\r\n
-          Content-type: text/html\r\n
-          \r\n";
+      //    cout << "htm" << endl;
+          sendType = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n";
 
         }
 
 
 
-      char* answer2 = (char*)fs->readFile(path, file, aLength);
+      byte* answer = FileSystem::instance().readFile(path, file, aLength);
+      if (answer == NULL) {
+        mySocket->Write((byte*)notF, strlen(notF));
+      } else {
+    //  cout << "len: " << aLength << endl;
+    //  cout << (char*)answer << endl;
       mySocket->Write((byte*)sendType, (uint) strlen(sendType));
-      mySocket->Write((byte*)answer2, (uint) strlen(answer2));
+      cout << "trams" << endl;
+      mySocket->Write(answer, (uint) aLength);
+  //    cout << "sent answer" << endl;
+      }
+      delete answer;
+      delete header;
 
-      done = true;
+    //  done = true; //wip
     } else if(strncmp(aData,"POST", 4) == 0){
-      cout << "post request" << endl;
+  //    cout << "post request" << endl;
     }
 
-  }
+//  }
   //close after every
+  //cout << "close socket" << endl;
   mySocket->Close();
 
 }
