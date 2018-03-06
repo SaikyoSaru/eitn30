@@ -127,6 +127,7 @@ SimpleApplication::SimpleApplication(TCPSocket* theSocket):
 void
 SimpleApplication::doit() //Copied
 {
+  cout << "SimpleApplication" << endl;
   udword aLength;
   byte* aData;
   bool done = false;

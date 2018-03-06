@@ -35,7 +35,17 @@ extern "C"
 HTTPServer::HTTPServer(TCPSocket* theSocket) :
   mySocket(theSocket)
 {
+  fs = new FileSystem();
 }
+
+//----------------------------------------------------------------------------
+//
+HTTPServer::~HTTPServer(){
+  delete fs;
+}
+
+
+
 //----------------------------------------------------------------------------
 //
 // Allocates a new null terminated string containing a copy of the data at
@@ -225,6 +235,22 @@ HTTPServer::findPathName(char* str)
   }
   return thePath;
 }
+//-----------------------------------------------------------------------------
+//
+//fin the name of the requested file
+char*
+HTTPServer::findFileName(char* str)
+{
+  char* firstPos = strchr(str, '/');
+  firstPos++;
+  char* lastPos = strchr(firstPos, ' ');
+  char* fileName = extractString(firstPos, (udword)(lastPos - firstPos));
+  //no filename found -> index page
+  if (strlen(fileName) == 0) {
+    fileName = "index.htm";
+  }
+  return fileName;
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -232,33 +258,80 @@ HTTPServer::findPathName(char* str)
 //the job to schedule
 void HTTPServer::doit()
 {
-  char* stdget = "HTTP/1.0 200 OK\r\n Content-type: text/html\r\n \r\n <<html><head><title>File not found</title></head>
-<body><h1>404 Not found</h1></body></html>>";
+  char* stdget = "HTTP/1.0 200 OK\r\n
+  Content-type: text/html\r\n
+  \r\n
+  <html><head><title>File not not found</title></head>
+  <body><h1>The body</h1></body></html>";
+  char* notF = "HTTP/1.0 404 Not found\r\n
+  Content-type: text/html\r\n
+  \r\n
+  <html><head><title>File not found</title></head>
+  <body><h1>404 Not found</h1></body></html>";
   cout << "this is a job" << endl;
+
+
 
   udword aLength;
   char* aData;
-
+  char* header;
+  bool done = false;
+  char* path;
+  byte* answer;
+  char* sendType;
   //cout << done << " and " << mySocket->isEof() << endl;
 
-  // while (!done && !mySocket->isEof())
-  // {
+   while (!done && !mySocket->isEof())
+   {
     //cout << "Core in socket" << ax_coreleft_total() << endl;
     aData = (char*)mySocket->Read(aLength);
-
+    header = extractString(aData, aLength);
+    path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
+    cout << "path: " << path <<" end path"<< endl;
     if(strncmp(aData,"GET", 3) == 0){
-      cout << "get request" << endl;
-      mySocket->Write((byte*)stdget, (uint)strlen(stdget));
+      //cout << "get request" << endl;
+      //cout << aData << endl;
+      //mySocket->Write((byte*)stdget, (uint)strlen(stdget));
+      char* file = findFileName(aData);
+      cout << "filename: " << file << endl;
+      char* type = strchr(file, '.');
+      type++;
+
+        if ( strcmp(type,"gif") == 0){
+          cout << "gif" << endl;
+          sendType = "HTTP/1.0 200 OK\r\n
+          Content-type: image/gif\r\n
+          \r\n";
+        } else if (strcmp(type, "jpg") == 0) {
+          cout << "jpg" << endl;
+          sendType = "HTTP/1.0 200 OK\r\n
+          Content-type: image/jpeg\r\n
+          \r\n";
+        } else {
+          cout << "htm" << endl;
+          sendType = "HTTP/1.0 200 OK\r\n
+          Content-type: text/html\r\n
+          \r\n";
+
+        }
+
+
+
+      char* answer2 = (char*)fs->readFile(path, file, aLength);
+      mySocket->Write((byte*)sendType, (uint) strlen(sendType));
+      mySocket->Write((byte*)answer2, (uint) strlen(answer2));
+
+      done = true;
     } else if(strncmp(aData,"POST", 4) == 0){
       cout << "post request" << endl;
     }
 
-    // char * tmp = extractString(aData, aLength);
-    // cout << tmp << endl;
-
-  // }
-  // mySocket->Close();
+  }
+  //close after every
+  mySocket->Close();
 
 }
+
+//HTTPServer::requestChecker()
 
 /************** END OF FILE http.cc *************************************/
