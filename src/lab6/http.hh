@@ -21,6 +21,8 @@ public:
   char* findPathName(char* str);
   char* findFileName(char* str);
   bool  authentication(char* header);
+  void  getRequest(char* header, udword aLength);
+  void  postRequest(char* header, udword aLength);
   void  doit();
 private:
   TCPSocket* mySocket;

@@ -260,18 +260,9 @@ HTTPServer::findFileName(char* str)
 //the job to schedule
 void HTTPServer::doit()
 {
-  char* notF = "HTTP/1.0 404 Not found\r\nContent-type: text/html\r\n\r\n
-  <html><head><title>File not found</title></head>
-  <body><h1>404 Not found</h1></body></html>";
-  //cout << "this is a job" << endl;
-
-  char* ok = "HTTP/1.0 200 OK\r\n"; //the first part of a ok
-  bool privCheck = true;
   udword aLength;
   char* aData;
   char* header;
-  char* path;
-  char* sendType;
 
   //cout << done << " and " << mySocket->isEof() << endl;
 
@@ -281,57 +272,15 @@ void HTTPServer::doit()
     aData = (char*)mySocket->Read(aLength);
     header = extractString(aData, aLength);
   //  cout << "path: " << path <<" end path"<< endl;
+  if(strncmp(aData,"GET", 3) == 0 || strncmp(aData,"HEAD", 4) == 0){
+    getRequest(header, aLength);
 
-
-
-    if(strncmp(aData,"GET", 3) == 0 || strncmp(aData,"HEAD", 4) == 0){
-      path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
-      char* file = findFileName(header); //check this out
-      char* type = strchr(file, '.');
-      type++;
-      if (strncmp(path,"private", 7) == 0) {
-        //check for authentication
-        privCheck = authentication(header);
-
-        // if (privCheck) { wip cleared the double auth problem
-        //   privCheck = authentication(header);
-        // }
-      }
-    if (privCheck) {
-        if ( strcmp(type,"gif") == 0){
-          sendType = "Content-type: image/gif\r\n\r\n";
-        } else if (strcmp(type, "jpg") == 0) {
-          sendType = "Content-type: image/jpeg\r\n\r\n";
-        } else {
-          sendType = "Content-type: text/html\r\n\r\n";
-        }
-        mySocket->Write((byte*)ok, strlen(ok));
-        mySocket->Write((byte*)sendType, (uint) strlen(sendType));
-
-        if (strncmp(aData,"GET", 3) == 0) {
-
-          byte* answer = FileSystem::instance().readFile(path, file, aLength);
-          if (answer == NULL) {
-            //if data not found
-            mySocket->Write((byte*)notF, strlen(notF));
-          } else {
-            //write the data
-            mySocket->Write(answer, (uint) aLength);
-          }
-          delete answer;
-
-        }
-        }
-      delete header;
-      delete aData;
-
-
-      }  else if(strncmp(aData,"POST", 4) == 0){
-
-
+      }  else if (strncmp(aData, "POST", 4) == 0){
         //Post
-      }
-
+        postRequest(header, aLength);
+       }
+    delete header;
+    delete aData;
     mySocket->Close();
 
 }
@@ -358,7 +307,6 @@ HTTPServer::authentication(char* header) {
     secCheck++;
     char* secEnd = strchr(secCheck, ' ');
     secCheck = extractString(secCheck, (udword)(secEnd - secCheck));
-
     secCheck = decodeBase64(secCheck);
 //    cout << "the found credentials"
     cout << "their credentials: " << secCheck << " - stored credentials : " << usrpwd1 << endl;
@@ -367,12 +315,99 @@ HTTPServer::authentication(char* header) {
 
     } else {
       mySocket->Write((byte*)unAuth, strlen(unAuth));
+      delete secCheck;
       return false;
     }
+    delete secCheck;
     return true;
 
   }
 }
-//HTTPServer::RequestHandler()
+void
+HTTPServer::getRequest(char* header, udword aLength) {
+  char* notF = "HTTP/1.0 404 Not found\r\nContent-type: text/html\r\n\r\n
+  <html><head><title>File not found</title></head>
+  <body><h1>404 Not found</h1></body></html>";
+  //cout << "this is a job" << endl;
+
+  char* sendType = "Content-type: text/html\r\n\r\n";
+  char* ok = "HTTP/1.0 200 OK\r\n"; //the first part of a ok
+  bool privCheck = true;
+  char* path;
+
+  path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
+  char* file = findFileName(header); //check this out
+  char* type = strchr(file, '.');
+
+  type++;
+  if (strncmp(path,"private", 7) == 0) {
+    //check for authentication
+    privCheck = authentication(header);
+
+    // if (privCheck) { wip cleared the double auth problem
+    //   privCheck = authentication(header);
+    // }
+  }
+  if (privCheck) {
+    if ( strcmp(type,"gif") == 0){
+      sendType = "Content-type: image/gif\r\n\r\n";
+    } else if (strcmp(type, "jpg") == 0) {
+      sendType = "Content-type: image/jpeg\r\n\r\n";
+    } else {
+      sendType = "Content-type: text/html\r\n\r\n";
+    }
+    mySocket->Write((byte*)ok, strlen(ok));
+    mySocket->Write((byte*)sendType, (uint) strlen(sendType));
+
+    if (strncmp(header,"GET", 3) == 0) {
+
+      byte* answer = FileSystem::instance().readFile(path, file, aLength);
+      if (answer == NULL) {
+        //if data not found
+        mySocket->Write((byte*)notF, strlen(notF));
+      } else {
+        //write the data
+        mySocket->Write(answer, (uint) aLength);
+      }
+      delete answer; // wip
+
+    }
+  }
+  delete path;
+  delete file;
+  delete type; //maybe worry bout this
+
+}
+void
+HTTPServer::postRequest(char* header, udword aLength) {
+  //post something
+  char* ok = "HTTP/1.0 200 OK\r\n"; //the first part of a ok
+  char* sendType = "Content-type: text/html\r\n\r\n";
+  char* accepted = "<html><head><title>Accepted</title></head>
+<body><h1>The file dynamic.htm was updated successfully.</h1></body></html>";
+  char* path;
+
+  path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
+  char* file = findFileName(header); //check this out
+
+  char* postReq = strstr(header, "dynamic");
+  udword contLen = contentLength(header, aLength);
+  postReq = decodeForm(postReq);
+  byte* toWrite = new byte[contLen + 1]; // dunno if append null or not
+  memcpy(toWrite, postReq, contLen + 1);
+  cout << "path: " << path << " file: " << file << endl;
+  cout << (char*)toWrite << endl;
+  FileSystem::instance().writeFile(path, file, toWrite, contLen+1);
+
+  mySocket->Write((byte*)ok, strlen(ok));
+  mySocket->Write((byte*)sendType, strlen(sendType));
+  mySocket->Write((byte*)accepted, strlen(accepted));
+  delete toWrite;
+  delete path;
+  delete file;
+  delete postReq;
+
+}
+
 
 /************** END OF FILE http.cc *************************************/

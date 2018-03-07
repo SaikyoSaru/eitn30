@@ -158,6 +158,8 @@ class TCPConnection
   retransmitTimer* timer;
 
   bool gotRST;
+  byte* buffer;
+  udword bufferLen;
 
 };
 
