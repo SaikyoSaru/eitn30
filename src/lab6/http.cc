@@ -265,13 +265,14 @@ void HTTPServer::doit()
   <body><h1>404 Not found</h1></body></html>";
   //cout << "this is a job" << endl;
 
-
-  char* ok = "HTTP/1.0 200 OK\r\n";
+  char* ok = "HTTP/1.0 200 OK\r\n"; //the first part of a ok
+  bool privCheck = true;
   udword aLength;
   char* aData;
   char* header;
   char* path;
   char* sendType;
+
   //cout << done << " and " << mySocket->isEof() << endl;
 
   //  while (!done && !mySocket->isEof())
@@ -279,59 +280,99 @@ void HTTPServer::doit()
     //cout << "Core in socket" << ax_coreleft_total() << endl;
     aData = (char*)mySocket->Read(aLength);
     header = extractString(aData, aLength);
-    path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
   //  cout << "path: " << path <<" end path"<< endl;
-    if(strncmp(aData,"GET", 3) == 0){
-      //cout << "get request" << endl;
-      //cout << aData << endl;
-      //mySocket->Write((byte*)stdget, (uint)strlen(stdget));
+
+
+
+    if(strncmp(aData,"GET", 3) == 0 || strncmp(aData,"HEAD", 4) == 0){
+      path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
       char* file = findFileName(header); //check this out
-    //  cout << "filename: " << file << endl;
       char* type = strchr(file, '.');
       type++;
+      if (strncmp(path,"private", 7) == 0) {
+        //check for authentication
+        privCheck = authentication(header);
 
+        // if (privCheck) { wip cleared the double auth problem
+        //   privCheck = authentication(header);
+        // }
+      }
+    if (privCheck) {
         if ( strcmp(type,"gif") == 0){
-    //      cout << "gif" << endl;
           sendType = "Content-type: image/gif\r\n\r\n";
-          // path = "pict";
-          // file = "small1.gif";
         } else if (strcmp(type, "jpg") == 0) {
-    //      cout << "jpg" << endl;
           sendType = "Content-type: image/jpeg\r\n\r\n";
         } else {
-      //    cout << "htm" << endl;
           sendType = "Content-type: text/html\r\n\r\n";
+        }
+        mySocket->Write((byte*)ok, strlen(ok));
+        mySocket->Write((byte*)sendType, (uint) strlen(sendType));
+
+        if (strncmp(aData,"GET", 3) == 0) {
+
+          byte* answer = FileSystem::instance().readFile(path, file, aLength);
+          if (answer == NULL) {
+            //if data not found
+            mySocket->Write((byte*)notF, strlen(notF));
+          } else {
+            //write the data
+            mySocket->Write(answer, (uint) aLength);
+          }
+          delete answer;
 
         }
-
-
-
-      byte* answer = FileSystem::instance().readFile(path, file, aLength);
-      if (answer == NULL) {
-        mySocket->Write((byte*)notF, strlen(notF));
-      } else {
-    //  cout << "len: " << aLength << endl;
-    //  cout << (char*)answer << endl;
-      mySocket->Write((byte*)ok, strlen(ok));
-      mySocket->Write((byte*)sendType, (uint) strlen(sendType));
-      mySocket->Write(answer, (uint) aLength);
-  //    cout << "sent answer" << endl;
-      }
-      delete answer;
+        }
       delete header;
+      delete aData;
 
-    //  done = true; //wip
-    } else if(strncmp(aData,"POST", 4) == 0){
-  //    cout << "post request" << endl;
-    }
 
-//  }
-  //close after every
-  //cout << "close socket" << endl;
-  mySocket->Close();
+      }  else if(strncmp(aData,"POST", 4) == 0){
+
+
+        //Post
+      }
+
+    mySocket->Close();
 
 }
+bool
+HTTPServer::authentication(char* header) {
+  char* unAuth = "HTTP/1.0 401 Unauthorized\r\nContent-Type: text/html\r\nWWW-Authenticate: Basic realm=\"private\"\r\n\r\n
+<html><head><title>401 Unauthorized</title></head>\r\n
+<body><h1>401 Unauthorized</h1></body></html>";
+  char* usrpwd1 = "marcus:222";
+  char* auth = "Basic";
 
-//HTTPServer::requestChecker()
+  //cout << header << endl;
+  if (strstr(header, auth) == NULL) {//not auth
+    cout << "privjet, suka" << endl;
+
+    mySocket->Write((byte*)unAuth, strlen(unAuth));
+    return false;
+
+
+  } else {
+    cout << "check pass" << endl;
+    char* secCheck = strstr(header, auth);
+    secCheck = strchr(secCheck, ' ');
+    secCheck++;
+    char* secEnd = strchr(secCheck, ' ');
+    secCheck = extractString(secCheck, (udword)(secEnd - secCheck));
+
+    secCheck = decodeBase64(secCheck);
+//    cout << "the found credentials"
+    cout << "their credentials: " << secCheck << " - stored credentials : " << usrpwd1 << endl;
+    if (strcmp(secCheck, usrpwd1) == 0) {
+      cout << "check cleared" << endl;
+
+    } else {
+      mySocket->Write((byte*)unAuth, strlen(unAuth));
+      return false;
+    }
+    return true;
+
+  }
+}
+//HTTPServer::RequestHandler()
 
 /************** END OF FILE http.cc *************************************/

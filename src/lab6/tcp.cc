@@ -154,6 +154,7 @@ TCPConnection::TCPConnection(IPAddress& theSourceAddress,
   myTCPSender = new TCPSender(this, theCreator),
   timer = new retransmitTimer(this, Clock::seconds * 1), // new, in seconds or millis?
   myState = ListenState::instance();
+  gotRST = false;
 }
 
 //----------------------------------------------------------------------------
@@ -604,37 +605,39 @@ TCPSender::~TCPSender()
 void
 TCPSender::sendFlags(byte theFlags)
 {
-  // Decide on the value of the length totalSegmentLength.
-  // Allocate a TCP segment.
-  uword totalSegmentLength = 20; //TODO: Default segment length, might change
-  byte* anAnswer = new byte[totalSegmentLength];
-  // Calculate the pseudo header checksum
-  TCPPseudoHeader* aPseudoHeader =
-    new TCPPseudoHeader(myConnection->hisAddress,
-                        totalSegmentLength);
-  uword pseudosum = aPseudoHeader->checksum();
-  delete aPseudoHeader;
-  // Create the TCP segment.
-  // Calculate the final checksum.
-  TCPHeader* aTCPHeader = (TCPHeader*) anAnswer;
-  aTCPHeader->flags = theFlags;
-  aTCPHeader->sourcePort = HILO(myConnection->myPort);
-  aTCPHeader->destinationPort = HILO(myConnection->hisPort);
-  aTCPHeader->sequenceNumber = LHILO(myConnection->sendNext);
-  aTCPHeader->acknowledgementNumber = LHILO(myConnection->receiveNext); // done!!
-  aTCPHeader->headerLength = 0x50;
-  aTCPHeader->checksum = 0;
-  aTCPHeader->urgentPointer = 0;
-  aTCPHeader->windowSize = HILO(myConnection->receiveWindow); //???
-  aTCPHeader->checksum = calculateChecksum((byte*)aTCPHeader,
-                                           totalSegmentLength,
-                                           pseudosum);
+  if(!myConnection->gotRST){
+    // Decide on the value of the length totalSegmentLength.
+    // Allocate a TCP segment.
+    uword totalSegmentLength = 20; //TODO: Default segment length, might change
+    byte* anAnswer = new byte[totalSegmentLength];
+    // Calculate the pseudo header checksum
+    TCPPseudoHeader* aPseudoHeader =
+      new TCPPseudoHeader(myConnection->hisAddress,
+                          totalSegmentLength);
+    uword pseudosum = aPseudoHeader->checksum();
+    delete aPseudoHeader;
+    // Create the TCP segment.
+    // Calculate the final checksum.
+    TCPHeader* aTCPHeader = (TCPHeader*) anAnswer;
+    aTCPHeader->flags = theFlags;
+    aTCPHeader->sourcePort = HILO(myConnection->myPort);
+    aTCPHeader->destinationPort = HILO(myConnection->hisPort);
+    aTCPHeader->sequenceNumber = LHILO(myConnection->sendNext);
+    aTCPHeader->acknowledgementNumber = LHILO(myConnection->receiveNext); // done!!
+    aTCPHeader->headerLength = 0x50;
+    aTCPHeader->checksum = 0;
+    aTCPHeader->urgentPointer = 0;
+    aTCPHeader->windowSize = HILO(myConnection->receiveWindow); //???
+    aTCPHeader->checksum = calculateChecksum((byte*)aTCPHeader,
+                                             totalSegmentLength,
+                                             pseudosum);
 
-  myAnswerChain->answer((byte*)aTCPHeader,
-                        totalSegmentLength);
-  // Deallocate the dynamic memory
-  delete anAnswer;
-  //delete aTCPHeader;
+    myAnswerChain->answer((byte*)aTCPHeader,
+                          totalSegmentLength);
+    // Deallocate the dynamic memory
+    delete anAnswer;
+    //delete aTCPHeader;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -643,45 +646,46 @@ void
 TCPSender::sendData(byte*  theData, udword theLength) {
   //cout << "sent data" << endl;
   // Calculate the pseudo header checksum
-  myConnection->timer->start();
-  udword totalSegmentLength = 20 + theLength;
-  byte* anAnswer = new byte[totalSegmentLength];
+  if(!myConnection->gotRST){
+    myConnection->timer->start();
+    udword totalSegmentLength = 20 + theLength;
+    byte* anAnswer = new byte[totalSegmentLength];
 
-  //create header and memcpy
-  TCPPseudoHeader* aPseudoHeader =
-    new TCPPseudoHeader(myConnection->hisAddress,
-                        totalSegmentLength);
-  uword pseudosum = aPseudoHeader->checksum();
+    //create header and memcpy
+    TCPPseudoHeader* aPseudoHeader =
+      new TCPPseudoHeader(myConnection->hisAddress,
+                          totalSegmentLength);
+    uword pseudosum = aPseudoHeader->checksum();
 
-  delete aPseudoHeader;
-  // Copy over the data to anAnswer
-  memcpy((byte*)(anAnswer + 20), theData, theLength);
+    delete aPseudoHeader;
+    // Copy over the data to anAnswer
+    memcpy((byte*)(anAnswer + 20), theData, theLength);
 
-  // Create the TCP segment.
-  // Calculate the final checksum.
-  TCPHeader* aTCPHeader = (TCPHeader*) anAnswer;
-  aTCPHeader->flags = 0x18;
-  aTCPHeader->sourcePort = HILO(myConnection->myPort);
-  aTCPHeader->destinationPort = HILO(myConnection->hisPort);
-  aTCPHeader->sequenceNumber = LHILO(myConnection->sendNext);
-  aTCPHeader->acknowledgementNumber = LHILO(myConnection->receiveNext); // done!!
-  aTCPHeader->headerLength = 0x50;
-  aTCPHeader->checksum = 0;
-  aTCPHeader->urgentPointer = 0;
-  aTCPHeader->windowSize = HILO(myConnection->receiveWindow); //???
-  aTCPHeader->checksum = calculateChecksum(anAnswer,
-                                           totalSegmentLength,
-                                           pseudosum);
+    // Create the TCP segment.
+    // Calculate the final checksum.
+    TCPHeader* aTCPHeader = (TCPHeader*) anAnswer;
+    aTCPHeader->flags = 0x18;
+    aTCPHeader->sourcePort = HILO(myConnection->myPort);
+    aTCPHeader->destinationPort = HILO(myConnection->hisPort);
+    aTCPHeader->sequenceNumber = LHILO(myConnection->sendNext);
+    aTCPHeader->acknowledgementNumber = LHILO(myConnection->receiveNext); // done!!
+    aTCPHeader->headerLength = 0x50;
+    aTCPHeader->checksum = 0;
+    aTCPHeader->urgentPointer = 0;
+    aTCPHeader->windowSize = HILO(myConnection->receiveWindow); //???
+    aTCPHeader->checksum = calculateChecksum(anAnswer,
+                                             totalSegmentLength,
+                                             pseudosum);
 
 
 
-  myAnswerChain->answer(anAnswer, //(byte*)aTCPHeader
-                        totalSegmentLength);
+    myAnswerChain->answer(anAnswer, //(byte*)aTCPHeader
+                          totalSegmentLength);
 
-  delete anAnswer;
-    // Deallocate the dynamic memory
-    //cout << "rekt, " << myConnection->sendNext << " counter: "<< disturbedCnt << endl;
-
+    delete anAnswer;
+      // Deallocate the dynamic memory
+      //cout << "rekt, " << myConnection->sendNext << " counter: "<< disturbedCnt << endl;
+  }
 }
 
 
@@ -802,6 +806,9 @@ TCPInPacket::decode()
                                           myDestinationPort,
                                           this);
 
+    if ((aTCPHeader->flags & 0x10) != 0) {
+      cout << "keepalive" << endl;
+    }
     if ((aTCPHeader->flags & 0x02) != 0)
     {
       // State LISTEN. Received a SYN flag.
@@ -836,8 +843,9 @@ TCPInPacket::decode()
       } else if ((aTCPHeader->flags & 0x04) != 0) {
         //in case of RST flag
       //  cout << "rst flag in decode" << endl;
-        //aConnection->Kill();
-        
+        aConnection->gotRST = true;
+        cout << "RST!!" << endl;
+        aConnection->Kill();
       } else { // check for ack
         aConnection->Acknowledge(myAcknowledgementNumber);
       }

@@ -157,6 +157,8 @@ class TCPConnection
   udword sentMaxSeq;
   retransmitTimer* timer;
 
+  bool gotRST;
+
 };
 
 /*****************************************************************************

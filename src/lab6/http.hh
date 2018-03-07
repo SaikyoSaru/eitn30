@@ -20,6 +20,7 @@ public:
   char* decodeForm(char* theEncodedForm);
   char* findPathName(char* str);
   char* findFileName(char* str);
+  bool  authentication(char* header);
   void  doit();
 private:
   TCPSocket* mySocket;
