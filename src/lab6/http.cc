@@ -263,10 +263,10 @@ void HTTPServer::doit()
   char* notF = "HTTP/1.0 404 Not found\r\nContent-type: text/html\r\n\r\n
   <html><head><title>File not found</title></head>
   <body><h1>404 Not found</h1></body></html>";
-  cout << "this is a job" << endl;
+  //cout << "this is a job" << endl;
 
 
-
+  char* ok = "HTTP/1.0 200 OK\r\n";
   udword aLength;
   char* aData;
   char* header;
@@ -292,15 +292,15 @@ void HTTPServer::doit()
 
         if ( strcmp(type,"gif") == 0){
     //      cout << "gif" << endl;
-          sendType = "HTTP/1.0 200 OK\r\nContent-type: image/gif\r\n\r\n";
+          sendType = "Content-type: image/gif\r\n\r\n";
           // path = "pict";
           // file = "small1.gif";
         } else if (strcmp(type, "jpg") == 0) {
     //      cout << "jpg" << endl;
-          sendType = "HTTP/1.0 200 OK\r\nContent-type: image/jpeg\r\n\r\n";
+          sendType = "Content-type: image/jpeg\r\n\r\n";
         } else {
       //    cout << "htm" << endl;
-          sendType = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n";
+          sendType = "Content-type: text/html\r\n\r\n";
 
         }
 
@@ -312,8 +312,8 @@ void HTTPServer::doit()
       } else {
     //  cout << "len: " << aLength << endl;
     //  cout << (char*)answer << endl;
+      mySocket->Write((byte*)ok, strlen(ok));
       mySocket->Write((byte*)sendType, (uint) strlen(sendType));
-      cout << "trams" << endl;
       mySocket->Write(answer, (uint) aLength);
   //    cout << "sent answer" << endl;
       }

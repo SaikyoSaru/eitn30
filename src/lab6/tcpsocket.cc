@@ -72,6 +72,7 @@ TCPSocket::Write(byte* theData, udword theLength)//Copied
 
   myConnection->Send(theData, theLength);
   myWriteSemaphore->wait(); // Wait until the data is acknowledged
+  cout << "the data got acked" << endl;
 }
 
 //----------------------------------------------------------------------------

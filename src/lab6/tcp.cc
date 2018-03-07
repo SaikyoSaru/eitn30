@@ -836,7 +836,8 @@ TCPInPacket::decode()
       } else if ((aTCPHeader->flags & 0x04) != 0) {
         //in case of RST flag
       //  cout << "rst flag in decode" << endl;
-        aConnection->Kill();
+        //aConnection->Kill();
+        
       } else { // check for ack
         aConnection->Acknowledge(myAcknowledgementNumber);
       }
