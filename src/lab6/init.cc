@@ -57,9 +57,6 @@ void
 initJob()
 {
   // The enums are casted to ints, 'cos some compilers thinks that's cool.
-  cout << "Create "
-       << static_cast<int>(numberOfServers) << " Job Servers, stack "
-       << static_cast<int>(serverStackSize) << " bytes" << endl;
   Job::createServers(numberOfServers, serverStackSize, jobQueueSoftLimit);
 }
 

@@ -44,7 +44,6 @@ udword Ethernet::disturbedCnt = 20;
 //----------------------------------------------------------------------------
 //
 Ethernet::Ethernet() {
-  trace << "Ethernet created." << endl;
   nextRxPage = 0;
   nextTxPage = 0;
   processingPacket = FALSE;
@@ -53,7 +52,6 @@ Ethernet::Ethernet() {
   myEthernetAddress = new EthernetAddress(0x00, 0x95, 0x07, 0x23, 0x02, 0x19);
   this->initMemory();
   this->initEtrax();
-  cout << "My node address is " << this->myAddress() << endl;
 }
 
 //----------------------------------------------------------------------------
@@ -75,7 +73,6 @@ void Ethernet::initMemory() {
   // STUFF: Set status byte on each page to 0 here!
   // Shall be done for both rx buffer and tx buffer.
 
-  trace << "initMemory" << endl;
   BufferPage *aPointer = (BufferPage *)rxStartAddress;
   for (page = 0; page < rxBufferPages; page++) {
     aPointer->statusCommand = 0x00;
@@ -91,7 +88,6 @@ void Ethernet::initMemory() {
 //----------------------------------------------------------------------------
 //
 void Ethernet::initEtrax() {
-  trace << "initEtrax" << endl;
   DISABLE_SAVE();
 
   *(volatile byte *)R_TR_MODE1 = (byte)0x20;
@@ -207,7 +203,6 @@ extern "C" void ethernet_interrupt() {
   /* return_rxbuf(). We clear the buffer full interrupt mask bit to disable   */
   /* more interrupts until things are taken care of in return_rxbuf().        */
   if (BITTST(bufferStatus, BUF__BUFFER_FULL)) {
-    cout << "kaos" << endl;
     *(volatile byte *)R_BUF_MASKC = 0x04;
     /* Disable further interrupts until we */
     /* are given space in return_rxbuf()   */
@@ -281,7 +276,6 @@ void Ethernet::returnRXBuffer() {
   // end pointer from start of receive buffer. Wraps at rxBufferSize.
 
   if ((aPage->endPointer - rxBufferOffset) < (nextRxPage * 256)) {
-    trace << "Delete wrap copy" << endl;
     delete[] wrappedPacket;
   }
 
@@ -289,11 +283,7 @@ void Ethernet::returnRXBuffer() {
   // endInBuffer.
   uword recEnd = (endInBuffer + rxBufferOffset) >> 8;
   *(volatile byte *)R_REC_END = recEnd;
-
-  trace << "RetRx: aPage " << hex << (udword)aPage << " endMarker "
-        << endInBuffer << " recEnd " << recEnd << endl;
   if (bufferFullCondition) {
-    trace << "buffer was full" << endl;
     *(volatile byte *)R_BUF_MASKS = 0x04;
     /* Enable this interrupt again. */
     bufferFullCondition = FALSE;
@@ -302,12 +292,9 @@ void Ethernet::returnRXBuffer() {
   // Adjust nextRxPage
   uword endPage = endInBuffer >> 8;
   nextRxPage = (endPage + 1) % rxBufferPages;
-  trace << " endPage " << hex << endPage << " nextRxPage " << (uword)nextRxPage
-        << endl;
 
   // Process next packet (if there is one ready)
   if (this->getReceiveBuffer()) {
-    trace << "Found pack in retrx" << endl;
     processingPacket = TRUE;
     RESTORE();
     os_send(OTHER_INT_PROG, THREAD_MAIN, THREAD_PACKET_RECEIVED, NO_DATA, 0,
@@ -322,7 +309,6 @@ void Ethernet::returnRXBuffer() {
 //
 void Ethernet::decodeReceivedPacket() {
 
-  trace << "Found packet at:" << hex << (udword)data1 << dec << endl;
   // STUFF: Blink packet LED
   FrontPanel::instance().packetReceived();
   EthernetInPacket *eip;
@@ -332,7 +318,6 @@ void Ethernet::decodeReceivedPacket() {
     eip =
         new EthernetInPacket(data1, length1, 0); // Vet inte vad datan ska va...
   } else {
-    trace << "Wrap copy" << endl;
     // When a wrapped buffer is received it will be copied into linear memory
     // this will simplify upper layers considerably...
     // There can be only one mirrored wrapped packet at any one time.
@@ -390,13 +375,11 @@ void Ethernet::transmittPacket(byte *theData, udword theLength) {
               nOfBufferPagesNeeded);
 #endif
     if ((uword)availablePages < nOfBufferPagesNeeded) {
-      cout << "Tx buffer full, waiting." << endl;
       os_delay(1); /* One tic = 10 ms */
       timeOut++;
       /* If nothing happens for 3 seconds then do something drastical.      */
       if (timeOut > 3 * WAIT_ONE_SECOND) /* 300 tics */
       {
-        cout << "Transmit buffer full for 3 seconds. Resetting.\n";
         this->resetTransmitter();
         timeOut = 0;
       }
@@ -456,7 +439,6 @@ void Ethernet::transmittPacket(byte *theData, udword theLength) {
 //----------------------------------------------------------------------------
 //
 void Ethernet::resetTransmitter() {
-  cout << "Transmit timeout. Resetting transmitter.\n" << endl;
   *(volatile byte *)R_TR_CMD = 0x01;   /* Reset */
   *(volatile byte *)R_TR_START = 0x00; /* First to transmit */
 
@@ -476,7 +458,6 @@ EthernetJob::EthernetJob(EthernetInPacket *thePacket) : myPacket(thePacket) {}
 void EthernetJob::doit() {
   myPacket->decode();
   delete myPacket;
-  // delete this;
 }
 
 //---------------------------------------------------------------------------
@@ -486,15 +467,11 @@ EthernetInPacket::EthernetInPacket(byte *theData, udword theLength,
     : InPacket(theData, theLength, theFrame) {}
 
 void EthernetInPacket::decode() {
-  trace << "decoding" << endl;
   EthernetHeader *eHeader = (EthernetHeader *)myData;
   myDestinationAddress = eHeader->destinationAddress;
   mySourceAddress = eHeader->sourceAddress;
   myTypeLen =
       ((eHeader->typeLen & 0x00ff) << 8) | ((eHeader->typeLen & 0xff00) >> 8);
-  trace << "length: " << myLength << " data pointer: " << hex << (udword)myData
-        << dec << endl;
-
   LLCInPacket *lccPacket = new LLCInPacket(
       myData + headerOffset(), myLength - headerOffset() - Ethernet::crcLength,
       this, myDestinationAddress, mySourceAddress, myTypeLen);
@@ -516,9 +493,6 @@ void EthernetInPacket::answer(byte *theData, udword theLength) {
 
   aHeader->typeLen = (((myTypeLen & 0x00ff) << 8) |
                       ((myTypeLen & 0xff00) >> 8)); // change endianess
-  trace << "send packet, length:" << theLength
-        << " dst: " << aHeader->destinationAddress
-        << " src: " << aHeader->sourceAddress << endl;
   Ethernet::instance().transmittPacket(eHead, theLength + headerOffset());
   delete eHead;
   delete theData;

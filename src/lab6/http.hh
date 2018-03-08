@@ -25,7 +25,7 @@ public:
 private:
   TCPSocket *mySocket;
   FileSystem *fs;
-  byte *postBuffer;
+  char *postBuffer;
   udword dataArrived;
   udword contLen;
   char *savedPath;

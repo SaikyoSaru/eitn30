@@ -81,7 +81,6 @@ IPInPacket::decode()
                                 realPacketLength - headerOffset(),
                                 this,
                                 mySourceIPAddress);
-        //  cout << "ip decode" << endl;
           tcp->decode();
           delete tcp;
         } else {
@@ -103,8 +102,6 @@ IPInPacket::answer(byte* theData, udword theLength)
   // cast to ip header again, and set the values
   byte * iphead = new byte[theLength + headerOffset()];
   memcpy(iphead + headerOffset(), theData, theLength);
-//  theLength += headerOffset();
-//  theData -= headerOffset();
   IPHeader * myIpHeader = (IPHeader*) (iphead);
   myIpHeader->identification = HILO(sequenceNumber++);
   myIpHeader->versionNHeaderLength = 0x45;
@@ -123,7 +120,6 @@ IPInPacket::answer(byte* theData, udword theLength)
   myFrame->answer((byte*)myIpHeader, theLength + headerOffset());
   delete iphead;
   delete theData;
-  //delete myFrame;
 }
 
 //-----------------------------------------------------------------------------

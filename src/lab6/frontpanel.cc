@@ -91,7 +91,6 @@ void FrontPanel::packetReceived() {
 }
 
 void FrontPanel::notifyLedEvent(uword theLedId) {
-  // cout << "notifyLedEvent called with: " << theLedId << endl;
   switch (theLedId) {
   case networkLedId:
     netLedEvent = true;
@@ -110,12 +109,10 @@ FrontPanel::FrontPanel()
     : Job(), mySemaphore(Semaphore::createQueueSemaphore("FP", 0)),
       myNetworkLED(networkLedId), netLedEvent(false), myCDLED(cdLedId),
       cdLedEvent(false), myStatusLED(statusLedId), statusLedEvent(false) {
-  // cout << "FrontPanel created." << endl;
   Job::schedule(this);
 }
 
 void FrontPanel::doit() {
-  // cout << "DOIT FRONTPANEL" << endl;
   myNetworkLEDTimer = new NetworkLEDTimer(1);
   myCDLEDTimer = new CDLEDTimer(Clock::seconds * 2);
   myStatusLEDTimer = new StatusLEDTimer(Clock::seconds * 3);
