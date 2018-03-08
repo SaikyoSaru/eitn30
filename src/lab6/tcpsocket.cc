@@ -27,7 +27,8 @@ TCPSocket::TCPSocket(TCPConnection* theConnection):
   myConnection(theConnection),
   myReadSemaphore(Semaphore::createQueueSemaphore("read",0)),
   myWriteSemaphore(Semaphore::createQueueSemaphore("write",0)),
-  myReadLength(0)
+  myReadLength(0),
+  eofFound(false)
 {
 }
 

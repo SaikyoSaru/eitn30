@@ -31,7 +31,8 @@ extern "C"
 //----------------------------------------------------------------------------
 //
 
-FileSystem::FileSystem()
+FileSystem::FileSystem() :
+savedPageLen(0)
 {
   int slask;
   cout << "FileSystem created." << endl;
@@ -47,9 +48,19 @@ FileSystem::instance()
   return myInstance;
 }
 
-bool FileSystem::writeFile(char *path,char *name,
+bool FileSystem::writeFile(char *path, char *name,
 			   byte *theData,udword theLength)
 {
+  cout << "path: " << path << " name: " << name << endl;
+  if(strncmp(path, "private", 7) == 0 && strncmp(name, "private.htm", 11) == 0){
+     delete [] savedPage;
+     savedPage = new byte[theLength];
+     savedPageLen = theLength;
+     memcpy(savedPage, theData, theLength);
+     cout << "saved file" << endl;
+     return true;
+  }
+  cout << "wrong file" << endl;
   return false;
 }
 
@@ -71,6 +82,14 @@ const byte FileSystem::myFileSystem[]=
 
 byte *FileSystem::readFile(char *path,char *name,udword& theLength)
 {
+  cout << "path: " << path << " name: " << name << endl;
+  if(strncmp(path, "dynamic", 7) == 0 && strncmp(name, "dynamic.htm", 11) == 0){
+    cout << "found it" << endl;
+    theLength = savedPageLen;
+    char* tmp = new char[theLength];
+    memcpy(tmp, savedPage, theLength);
+    return tmp;
+  }
   int file_size=sizeof(FileSystem::myFileSystem);
   int curr_size=0;
   int curr_file_size=0;

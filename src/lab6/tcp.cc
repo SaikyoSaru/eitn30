@@ -156,7 +156,7 @@ TCPConnection::TCPConnection(IPAddress& theSourceAddress,
   timer = new retransmitTimer(this, Clock::seconds * 1), // new, in seconds or millis?
   myState = ListenState::instance();
   gotRST = false;
-  bufferLen = 0; //initiate the buffer...
+  mySocket = NULL;
 
 }
 
@@ -166,9 +166,18 @@ TCPConnection::~TCPConnection()
 {
   trace << "TCP connection destroyed" << endl;
   delete myTCPSender;
-  delete timer; //new
+  cout << "delete timer" << endl;
+  if (timer) {
+    delete timer;
+  }
+   //new
   //delete myState; // fixed the continous spam of delete chain
-  delete mySocket;  //wip testing
+  cout << "delete socket" << endl;
+  if (mySocket != NULL) {
+    delete mySocket;  //wip testing
+
+  }
+  cout << "delete complete" << endl;
 }
 
 //----------------------------------------------------------------------------
@@ -822,6 +831,7 @@ TCPInPacket::decode()
     else
     {
       // State LISTEN. No SYN flag. Impossible to continue.
+      cout << "keepalive" << endl;
       aConnection->Kill();
     }
   }
@@ -839,23 +849,10 @@ TCPInPacket::decode()
 
       } else if ((aTCPHeader->flags & 0x08) != 0) {
         //  cout << "Receive data decode" << endl;
-          //got data
-          if (aConnection->bufferLen > 0) {
-            cout << "allmegadata" << endl;
-            byte* allData = new byte[myLength - headerOffset() + aConnection->bufferLen];
-            memcpy(allData, aConnection->buffer, aConnection->bufferLen);
-            memcpy(allData + aConnection->bufferLen, myData + headerOffset(), myLength - headerOffset());
-            delete aConnection->buffer;
-            aConnection->Receive(mySequenceNumber - aConnection->bufferLen,
-                              allData,
-                              myLength - headerOffset() + aConnection->bufferLen);
-            //delete myData;
-            aConnection->bufferLen = 0;
-          } else {
           aConnection->Receive(mySequenceNumber,
                             myData + headerOffset(),
                             myLength - headerOffset());
-          }
+          //}
 
       } else if ((aTCPHeader->flags & 0x04) != 0) {
         //in case of RST flag
@@ -865,16 +862,26 @@ TCPInPacket::decode()
         aConnection->Kill();
 
       } else { // check for ack
-        if (myLength - headerOffset() > 0) { // wip check for data in the ack before push
-          cout << "length" << myLength << endl;
 
-          aConnection->buffer = new byte[myLength - headerOffset()];
-          aConnection->bufferLen = myLength - headerOffset();
-          memcpy(aConnection->buffer, myData + headerOffset(), aConnection->bufferLen);
-          
-          }  // prob solution to data with ack??
-        aConnection->Acknowledge(myAcknowledgementNumber);
-      }
+
+
+        if (myLength - headerOffset() > 0) { // wip check for data in the ack before push
+          aConnection->Receive(mySequenceNumber,
+                            myData + headerOffset(),
+                            myLength - headerOffset());
+
+          // cout << "length" << myLength << endl;
+          //
+          // aConnection->buffer = new byte[myLength - headerOffset()];
+          // aConnection->bufferLen = myLength - headerOffset();
+          // memcpy(aConnection->buffer, myData + headerOffset(), aConnection->bufferLen);
+
+        }  else {
+            aConnection->Acknowledge(myAcknowledgementNumber);
+        } // prob solution to data with ack??
+
+      //  cout << "acknow" << endl;
+    }
     }
   }
 }

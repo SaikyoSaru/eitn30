@@ -41,6 +41,8 @@ class FileSystem
 
  private:
  static const byte myFileSystem[];
+ udword savedPageLen;
+ byte* savedPage;
 };
 
 #endif

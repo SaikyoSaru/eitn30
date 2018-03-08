@@ -33,7 +33,9 @@ extern "C"
 
 
 HTTPServer::HTTPServer(TCPSocket* theSocket) :
-  mySocket(theSocket)
+  mySocket(theSocket),
+  dataArrived(0),
+  contLen(0)
 {
   //fs = new FileSystem();
 }
@@ -263,27 +265,38 @@ void HTTPServer::doit()
   udword aLength;
   char* aData;
   char* header;
+  done = false;
 
   //cout << done << " and " << mySocket->isEof() << endl;
 
-  //  while (!done && !mySocket->isEof())
-  //  {
-    //cout << "Core in socket" << ax_coreleft_total() << endl;
-    aData = (char*)mySocket->Read(aLength);
-    header = extractString(aData, aLength);
-  //  cout << "path: " << path <<" end path"<< endl;
-  if(strncmp(aData,"GET", 3) == 0 || strncmp(aData,"HEAD", 4) == 0){
-    getRequest(header, aLength);
+    while (!done && !mySocket->isEof())
+    {
+    //   //cout << "Core in socket" << ax_coreleft_total() << endl;
+      aData = (char*)mySocket->Read(aLength);
+      header = extractString(aData, aLength);
+    //  cout << "path: " << path <<" end path"<< endl;
+      if(strncmp(aData,"GET", 3) == 0 || strncmp(aData,"HEAD", 4) == 0){
+        getRequest(header, aLength);
+        done = true;
 
-      }  else if (strncmp(aData, "POST", 4) == 0){
-        //Post
+      }  else if (strncmp(aData, "POST", 4) == 0 || contLen !=0){
+          //Post
+        cout << "post" << endl;
         postRequest(header, aLength);
-       }
-    delete header;
-    delete aData;
+
+      }
+      delete header;
+      delete aData;
+    cout << "done: " << done << " eof: " << mySocket->isEof() << endl;
+    }
+    cout << "close socket" << endl;
     mySocket->Close();
 
 }
+
+//-----------------------------------------------------------------------------
+//
+
 bool
 HTTPServer::authentication(char* header) {
   char* unAuth = "HTTP/1.0 401 Unauthorized\r\nContent-Type: text/html\r\nWWW-Authenticate: Basic realm=\"private\"\r\n\r\n
@@ -323,11 +336,13 @@ HTTPServer::authentication(char* header) {
 
   }
 }
+
+//-----------------------------------------------------------------------------
+//
+
 void
 HTTPServer::getRequest(char* header, udword aLength) {
-  char* notF = "HTTP/1.0 404 Not found\r\nContent-type: text/html\r\n\r\n
-  <html><head><title>File not found</title></head>
-  <body><h1>404 Not found</h1></body></html>";
+  char* notF = "HTTP/1.0 404 Not found\r\nContent-type: text/html\r\n\r\n<html><head><title>File not found</title></head><body><h1>404 Not found</h1></body></html>";
   //cout << "this is a job" << endl;
 
   char* sendType = "Content-type: text/html\r\n\r\n";
@@ -362,6 +377,7 @@ HTTPServer::getRequest(char* header, udword aLength) {
     if (strncmp(header,"GET", 3) == 0) {
 
       byte* answer = FileSystem::instance().readFile(path, file, aLength);
+      //byte* answer = new byte[]
       if (answer == NULL) {
         //if data not found
         mySocket->Write((byte*)notF, strlen(notF));
@@ -378,6 +394,10 @@ HTTPServer::getRequest(char* header, udword aLength) {
   delete type; //maybe worry bout this
 
 }
+
+//-----------------------------------------------------------------------------
+//
+
 void
 HTTPServer::postRequest(char* header, udword aLength) {
   //post something
@@ -385,28 +405,44 @@ HTTPServer::postRequest(char* header, udword aLength) {
   char* sendType = "Content-type: text/html\r\n\r\n";
   char* accepted = "<html><head><title>Accepted</title></head>
 <body><h1>The file dynamic.htm was updated successfully.</h1></body></html>";
-  char* path;
 
-  path = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
-  char* file = findFileName(header); //check this out
 
-  char* postReq = strstr(header, "dynamic");
-  udword contLen = contentLength(header, aLength);
-  postReq = decodeForm(postReq);
-  byte* toWrite = new byte[contLen + 1]; // dunno if append null or not
-  memcpy(toWrite, postReq, contLen + 1);
-  cout << "path: " << path << " file: " << file << endl;
-  cout << (char*)toWrite << endl;
-  FileSystem::instance().writeFile(path, file, toWrite, contLen+1);
+  if(contLen == 0) {
+    contLen = contentLength(header, aLength);
+    postBuffer = new byte[contLen + 1];
+    savedPath = findPathName(header); //Eventuellt dela upp header och enbart använda första raden
+    savedFileName = findFileName(header); //check this out
 
-  mySocket->Write((byte*)ok, strlen(ok));
-  mySocket->Write((byte*)sendType, strlen(sendType));
-  mySocket->Write((byte*)accepted, strlen(accepted));
-  delete toWrite;
-  delete path;
-  delete file;
-  delete postReq;
+  } else {
+    //udword contLen = contentLength(header, aLength);
+    char* postReq = strstr(header, "dynamic");
+    char* decodedReq = decodeForm(postReq);
+    postBuffer = new byte[strlen(decodedReq)];
+    //cout << "decodedreq\n\n" << decodedReq << endl;
+    memcpy(postBuffer + dataArrived, decodedReq, strlen(decodedReq));
+    dataArrived += strlen(postReq);
+    //cout << (char*)postBuffer << endl;
+    cout << "dataArrived: " << dataArrived << "content len: " << contLen << " decodedReq len: " << strlen(decodedReq) << endl;
+      //cout << (char*)postBuffer << endl;
+    if (dataArrived == contLen) {
 
+      //cout << "path: " << path << " file: " << file << endl;
+      cout << postBuffer << endl;
+      FileSystem::instance().writeFile(savedPath, savedFileName, postBuffer, strlen(decodedReq));
+
+      mySocket->Write((byte*)ok, strlen(ok));
+      mySocket->Write((byte*)sendType, strlen(sendType));
+      mySocket->Write((byte*)accepted, strlen(accepted));
+      delete savedPath;
+      delete savedFileName;
+      delete postBuffer;
+      dataArrived = 0;
+      done = true;
+    }
+
+
+    delete postReq;
+  }
 }
 
 
